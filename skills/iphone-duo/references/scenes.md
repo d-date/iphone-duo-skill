@@ -33,7 +33,7 @@ iPad や iPhone ミラーリングでのリサイズにすでに対応してい�
 
 ## 複数ウインドウ
 
-iPhone Duo は、アプリの UI を複数インスタンス表示できる最初の iPhone です。iPad で対応しているアプリは iPhone Duo でも対応します。
+iPhone Duo は、アプリの UI を複数インスタンス表示できる最初の iPhone です。iPad で対応しているアプリは iPhone Duo でも対応します。仕組みは iPad と同じで、同じアプリのインスタンス同士も、他のアプリとも並べられます。`@AppStorage` のような保存先を参照している場合、状態はインスタンス間で共有されます。
 
 **ただし新規ウインドウを作成できるのは内側ディスプレイだけ**で、外側ディスプレイでは作成できません。この可否が動的に変わるのが iPhone Duo 固有の挙動です。
 
@@ -68,7 +68,7 @@ CameraView(model: model)
 
 `sceneAccessory(content:)` に渡す内容は `SceneAccessoryContent` に準拠している必要があります。
 
-- `CameraCaptureAccessory` — カメラ利用時に外側ディスプレイへ追加 UI を出す。条件は内側ディスプレイでの全画面表示とアクティブなカメラセッション。**カメラ UI と同じビューに登録する**と、カメラが表示されているときだけアクセサリが出る
+- `CameraCaptureAccessory` — カメラ利用時に外側ディスプレイへ追加 UI を出す。条件は内側ディスプレイでの全画面表示とアクティブなカメラセッション。**カメラ UI と同じビューに登録する**と、カメラが表示されているときだけアクセサリが出る。内側と外側のディスプレイを同時に使えるのはカメラアプリだけで、システムの entitlement が必要。entitlement があってもカメラセッションが動いている間しか使えない。entitlement の名前や申請方法は公開されていないため、推測で書かないこと
 - `ExternalNonInteractiveAccessory` — 外部ディスプレイへ操作を伴わないコンテンツを出す
 
 UIKit では `UISceneAccessory` が対応し、利用可否は `UISceneAccessoryRegistration.isAvailable` で確認します。

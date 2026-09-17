@@ -2,7 +2,7 @@
 
 Apple の iPhone Duo にアプリを対応させるための [Claude Code](https://claude.com/claude-code) skill です。
 
-Tech Talks 6本と Human Interface Guidelines を一次情報として整理しています。API の綴りと使い方は、各セッションページに掲載された公式コードサンプルで確認しています。
+Tech Talks 6本、Human Interface Guidelines、iPhone Duo Group Lab（2026-09-16）を一次情報として整理しています。API の綴りと使い方は、各セッションページに掲載された公式コードサンプルで確認しています。
 
 ## 収録内容
 
