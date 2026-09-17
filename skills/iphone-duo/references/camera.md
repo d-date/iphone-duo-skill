@@ -29,7 +29,7 @@ Virtual Front Camera は仮想デバイスで、`isVirtualDevice` が `true` で
 
 ## カメラの向き
 
-固定の `position`（前面・背面・不定）だけでは、カメラが利用者の方を向いているか判断できません。端末を開いたり裏返したりすると関係が変わるためです。
+固定の `position`（前面・背面・不定）だけでは、カメラが利用者の方を向いているか判断できません。端末を開いたり裏返したりすると関係が変わるためです。たとえば開いて裏返すと、背面カメラと外側ディスプレイのカメラがどちらも利用者側を向きます（Apple の記事「Choosing a camera by the direction it faces」に、閉じた状態・開いた状態・開いて裏返した状態の図があります）。
 
 `AVCaptureDeviceDirectionCoordinator`（AVKit）が、**アプリのビューから見た**カメラの向きを報告します。
 
@@ -59,7 +59,7 @@ directionCoordinator = AVCaptureDeviceDirectionCoordinator(
 
 ハンドラーは生成直後に一度（初期状態）、以降は変化のたびに main actor で呼ばれます。最初の呼び出しまで `deviceDirections` は空です。
 
-渡される `AVCaptureDeviceDirectionMap` は `forwardFacingDeviceDescriptors` と `backwardFacingDeviceDescriptors` を持ちます。**forward-facing は「ビューと同じ向き」であって、`position == .front` ではありません。**向きを `position` やデバイスタイプから推定しないでください。画面が1つの iPhone でも同じコードで動きます（前面は forward、背面は backward、不定はどちらにも入らず、ハンドラーは1回だけ呼ばれる）。
+渡される `AVCaptureDeviceDirectionMap`（iOS 27.1+ Beta）は `forwardFacingDeviceDescriptors` と `backwardFacingDeviceDescriptors` を持ちます。**forward-facing は「ビューと同じ向き」であって、`position == .front` ではありません。**向きを `position` やデバイスタイプから推定しないでください。画面が1つの iPhone でも同じコードで動きます（前面は forward、背面は backward、不定はどちらにも入らず、ハンドラーは1回だけ呼ばれる）。
 
 使用中のカメラが forward-facing に残っているなら何もせず、なくなったときだけ代わりを選びます。選んだ descriptor はカメラ用 actor に渡し、**切り替えに成功してから**使用中のカメラとして記録してください。先に記録すると、デバイスを作れなかったときに実際のカメラと記録が食い違い、次の通知で切り替えが省略されます。
 
@@ -77,7 +77,7 @@ coordinator はビューに紐づくため main actor に隔離されます。�
 
 ### カメラ用 actor での再構成
 
-- `AVCaptureDeviceDescriptor` は `deviceType` / `mediaTypes` / `position` / `uniqueID` / `localizedName` を持つ `Sendable` な値。デバイスの確保はしない
+- `AVCaptureDeviceDescriptor`（iOS 27.1+ Beta）は `deviceType` / `mediaTypes` / `position` / `uniqueID` / `localizedName` を持つ `Sendable` な値。デバイスの確保はしない
 - actor 側で `AVCaptureDevice(uniqueID:)` から作る。**dispatch の間にカメラ構成が変わるので `nil` を処理する（強制アンラップしない）**
 - マルチカメラセッションで2台つなぐより、1つのビデオ入力を差し替える
 - `beginConfiguration()` / `commitConfiguration()` の中で入力を入れ替え、`canAddInput` が通らなければ元の入力に戻す
@@ -123,7 +123,9 @@ previewLayer.connection?.videoRotationAngle = coordinator.videoRotationAngleForH
 
 角度のプロパティは key-value observing に対応しているため、変化を監視して反映します。
 
-実装上の注意（Apple のサンプル「Supporting device rotation in your camera app」より）:
+Apple の AVFoundation サンプルコード「Supporting device rotation in your camera app」（iOS 27.0+、Xcode 27.0+、https://developer.apple.com/documentation/avfoundation/supporting-device-rotation-in-your-camera-app）が、AVCam を題材にプレビューと撮影結果の両方へ角度を適用する方法を扱っています。アプリ全体の構成は「AVCam: Building a camera app」（https://developer.apple.com/documentation/avfoundation/avcam-building-a-camera-app）にあります。
+
+実装上の注意:
 
 - **coordinator はデバイスに固定。カメラを切り替えるたびに作り直す**
 - `previewLayer` に `nil` を渡して作った coordinator は、あとでレイヤーができてもプレビュー角度を報告しない。レイヤーが揃ったら作り直す
