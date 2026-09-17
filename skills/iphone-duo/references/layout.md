@@ -99,6 +99,8 @@ proxy.reservedRegions(kind: .division, options: .includeInactive)
 proxy.reservedRegions(kind: .occlusion)
 ```
 
+SwiftUI の宣言は `reservedRegions(kind:options:layoutDirectionBehavior:)` で、`options` の既定値は空、`layoutDirectionBehavior` の既定値は `.mirrors` です。`ReservedRegion` は `frame` のほかに `isActive`、`kind`、`margins` を持ちます（iOS 27.1+ Beta）。
+
 グリッド状のレイアウトでは列数を偶数にしておくと、折り目で分かれたときにきれいに割れます。折り目の状態によらず偶数を保ちたい場合に `.includeInactive` が効きます。
 
 ## displacement（要素の移動）

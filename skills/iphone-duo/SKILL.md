@@ -59,9 +59,11 @@ Xcode 27.1 がない段階では、Mac の iPhone ミラーリングでアプリ
 
 ## iOS 27.1 の API について
 
-iPhone Duo 向けに追加される API の多くは、セッションの公式コードサンプルには登場するものの、**公開ドキュメントの索引にも iOS 27.0 SDK にも含まれていません**。arrangement、reserved regions、ヒンジ、垂直バーの制御、カメラの direction coordinator が該当します。
+arrangement、reserved regions、ヒンジ（UIKit）、垂直バーの制御、カメラの direction coordinator などは、2026-09-17 時点で **iOS 27.1+ Beta** としてドキュメントの公開を確認しています。ベータ版なので正式リリースまでに変わる可能性があります。
 
-各参照ではサンプルで確認できた綴りと使い方を記載していますが、完全なシグネチャや値の一覧は正式なドキュメントの公開を待つ必要があります。**実装時は必ず Xcode の補完と実機/シミュレータで確認してください。**
+2026-09-17 時点でドキュメントに見当たらず、セッションのサンプルでしか確認できないのは SwiftUI の `onHingeChange`、`toolbarVerticalBehavior(_:)`、`toolbarVerticalCompressionBehavior(_:)` です。
+
+**実装時は Xcode の補完と実機/シミュレータで確認してください。**
 
 ## 回答の仕方
 
@@ -74,3 +76,4 @@ iPhone Duo 向けに追加される API の多くは、セッションの公式�
 - Tech Talks: Prepare your app for iPhone Duo / Raise the bar with iPhone Duo / Strike a pose with adaptive layouts on iPhone Duo / Leverage multiple displays and scenes on iPhone Duo / Build a great camera experience for iPhone Duo / Design for iPhone Duo
 - Human Interface Guidelines: Designing for iPhone Duo
 - Meet with Apple: iPhone Duo Group Lab（2026-09-16）
+- Apple Developer Documentation: Choosing a camera by the direction it faces / Supporting device rotation in your camera app / iOS 27.1 Beta API リファレンス

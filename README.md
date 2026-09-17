@@ -37,18 +37,24 @@ cp -r iphone-duo-skill/skills/iphone-duo ~/.claude/skills/
 
 ## 注意
 
-iPhone Duo 向けに追加される API の多くは、現時点で公開ドキュメントの索引にも iOS 27.0 SDK にも含まれていません。arrangement、reserved regions、ヒンジ、垂直バーの制御、カメラの direction coordinator が該当します。
+iPhone Duo 向けの API の多くは iOS 27.1+ Beta としてドキュメントが公開されています。ベータ版のため、正式リリースまでに変わる可能性があります。
 
-各参照には公式コードサンプルで確認できた綴りと使い方を記載していますが、完全なシグネチャや値の一覧は正式なドキュメントの公開を待つ必要があります。実装時は Xcode の補完と実機・シミュレータで確認してください。
+SwiftUI の `onHingeChange`、`toolbarVerticalBehavior(_:)`、`toolbarVerticalCompressionBehavior(_:)` は、2026-09-17 時点でドキュメントに見当たらず、セッションの公式コードサンプルでのみ確認しています。実装時は Xcode の補完と実機・シミュレータで確認してください。
 
 ## 出典
 
-いずれも Apple Developer で公開されているものです。
-
 - Tech Talks: Prepare your app for iPhone Duo / Raise the bar with iPhone Duo / Strike a pose with adaptive layouts on iPhone Duo / Leverage multiple displays and scenes on iPhone Duo / Build a great camera experience for iPhone Duo / Design for iPhone Duo
 - Human Interface Guidelines: Designing for iPhone Duo
+- Meet with Apple: [iPhone Duo Group Lab](https://www.youtube.com/watch?v=0zp4gAgC6TI)（2026-09-16）
+- Apple Developer Documentation: Choosing a camera by the direction it faces / Supporting device rotation in your camera app / iOS 27.1 Beta の API リファレンス
 
 本 skill の文章は上記を読んで整理したもので、Apple の文章やコードサンプルをそのまま収録したものではありません。
+
+## 更新履歴
+
+- 2026-09-17: Apple のカメラ関連ドキュメント2本と iOS 27.1 Beta の API リファレンスを反映
+- 2026-09-17: iPhone Duo Group Lab（2026-09-16）の回答を反映
+- 2026-09-11: 初版
 
 ## ライセンス
 

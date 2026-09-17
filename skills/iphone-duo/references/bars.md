@@ -95,6 +95,7 @@ item.badge = .count(7)       // UIKit（iOS 26.0+）
 .toolbarVerticalCompressionBehavior(.prefersToolbarItems)
 // UIKit
 navigationItem.verticalBarCompressionBehavior = .prefersBarItems
+// UIVerticalBarCompressionBehavior は .automatic / .prefersBarItems / .prefersTabBar
 ```
 
 項目は既定で下から上の順にオーバーフローします。順序は可視性優先度で調整します。まずグループ単位で決め、必要に応じて個別項目にも設定します。頻繁に使う操作や重要な状態を示す項目は長く残します。
