@@ -29,6 +29,8 @@ Virtual Front Camera は仮想デバイスで、`isVirtualDevice` が `true` で
 
 ## カメラの向き
 
+縦向きに固定して UI 部品を個別に回す疑似的な自動回転を実装している場合は、rotation coordinator と direction coordinator の2つに置き換えてください。前者が撮影画面をどれだけ回せばよいかを、後者が使っているカメラがどちらを向いているかを教えます。前面カメラが2つあるため、前面カメラが利用者の方を向いているという前提は成り立ちません。自前で位置関係を計算しないでください。
+
 固定の `position`（前面・背面・不定）だけでは、カメラが利用者の方を向いているか判断できません。端末を開いたり裏返したりすると関係が変わるためです。たとえば開いて裏返すと、背面カメラと外側ディスプレイのカメラがどちらも利用者側を向きます（Apple の記事「Choosing a camera by the direction it faces」に、閉じた状態・開いた状態・開いて裏返した状態の図があります）。
 
 `AVCaptureDeviceDirectionCoordinator`（AVKit）が、**アプリのビューから見た**カメラの向きを報告します。
@@ -53,7 +55,7 @@ directionCoordinator = AVCaptureDeviceDirectionCoordinator(
 
 たとえば端末を開いてビューが内側ディスプレイへ移ると、外側の前面カメラと背面カメラはどちらも backward-facing、内側の前面カメラが forward-facing として報告されます。
 
-両ディスプレイを同時に使う場合は**ビューごとに coordinator を作ります**。同じ背面カメラでも、外側ディスプレイ側からは forward-facing、内側ディスプレイ側からは backward-facing になります。それぞれのビューを基準に報告されるためです。
+両ディスプレイを同時に使う場合は**ビューごとに coordinator を作ります**。同じ背面カメラでも、外側ディスプレイ側からは forward-facing、内側ディスプレイ側からは backward-facing になります。それぞれのビューを基準に報告されるためです。両ディスプレイを同時に使う仕組みそのものは `references/scenes.md` の「カメラアクセサリの登録」を参照してください。
 
 ### 変更ハンドラーの書き方
 
@@ -143,3 +145,9 @@ photoOutput.connection(with: .video)?.videoRotationAngle = coordinator.videoRota
 ```swift
 photoOutput.isCameraSensorOrientationCompensationEnabled = false
 ```
+
+## ビデオ通話アプリ
+
+内側の前面カメラは端末の右寄りという独特な位置にあります。利用者の視線がそこへ向くよう、**UI の重心をカメラのある側へ寄せてください**（Apple の FaceTime はそうしています）。
+
+自分の映像を映す小さなビューは、内側カメラの領域に重ならないようにします。内側カメラの occlusion はカメラが作動している間だけ現れ、切ると消えるので、移動させる側も出し入れに追従する必要があります。reserved regions の `.occlusion` で領域を取ります（`references/layout.md` 参照）。

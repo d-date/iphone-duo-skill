@@ -19,7 +19,22 @@ traitCollection.horizontalSizeClass
 // 変化への追従は registerForTraitChanges(_:action:)（iOS 17.0+）
 ```
 
-固定幅、ブレークポイント、特定の画面に結び付いた寸法は避けてください。
+固定幅、ブレークポイント、特定の画面に結び付いた寸法は避けてください。外側ディスプレイで縦向きと横向きを区別したい場合も、2軸の size class が異なるので判断できます。ただしまず「区別する必要が本当にあるか」を疑ってください。
+
+### 分岐で状態を失わない
+
+size class で `if` を切り、分岐ごとに別のコンテナを使っている SwiftUI のコードは、分岐が切り替わった時点で片方のビュー階層が捨てられます。状態を上位に持ち上げていなければ失われます。
+
+```swift
+// 避ける: 分岐ごとに別のコンテナ
+if horizontalSizeClass == .regular {
+    NavigationSplitView { ... } detail: { ... }
+} else {
+    NavigationStack { ... }
+}
+```
+
+内側と外側のディスプレイを行き来してもアプリは作り直されません。破棄と再生成ではなくリサイズなので、標準のナビゲーションコンテナを使っていれば状態はそのまま引き継がれます。分岐そのものをやめられないか（`NavigationSplitView` 単体や `ArrangementView` で吸収できないか）を先に検討してください。
 
 内側ディスプレイで縦横のレイアウトを変えたい場合、現在の向きは environment と trait から取れますが、判断は利用できる幅で行ってください。iPad では横向きのまま幅の狭いウインドウを作れるためです。分割ビューなどのコンテナに列の判断を任せ、グリッドは実際の幅に合わせます（例: 横向きで2列、縦向きで1列）。
 
@@ -56,11 +71,17 @@ foreground.frame = view.bounds.inset(by: view.safeAreaInsets)
 backgroundView.frame = view.bounds
 ```
 
+縦向き固定のアプリは固定を外し、横向きで leading と trailing の safe area を確認してください。`safeAreaInsets.left * 2` のように片側を2倍している箇所が典型的な壊れどころです。サイドバーを持つ iPad アプリは leading 側をすでに扱っているぶん有利です。
+
 インセットの取得は SwiftUI が `GeometryProxy.safeAreaInsets`、UIKit が `UIView.safeAreaInsets` です。UIKit には領域ごとのガイドを返す `UIView.LayoutRegion`（iOS 26.0+）もあり、`layoutGuide(for:)` / `edgeInsets(for:)` で safe area・margins・readable content を角への追従つきで取得できます。
+
+バーを持たないアプリで、safe area 全体ではなくカメラとステータスバーのある領域だけを避けたい場合は、`UIView.LayoutRegion` の corner adaptation でその領域だけを尊重し、残りは端まで描けます（全画面のゲームなど）。
 
 ## 画面の角
 
 iOS 26 の Concentricity API が iPhone Duo の画面形状に対応するよう更新されています。
+
+外側ディスプレイの4隅は半径がそろっていません（ヒンジから遠い側のほうが丸い）。またこれまで角を扱う必要がなかった位置に角が現れます。iPad 向けに角の対応を済ませていても、扱う場面が増えていないか確認してください。
 
 ```swift
 // SwiftUI
@@ -102,6 +123,8 @@ proxy.reservedRegions(kind: .occlusion)
 SwiftUI の宣言は `reservedRegions(kind:options:layoutDirectionBehavior:)` で、`options` の既定値は空、`layoutDirectionBehavior` の既定値は `.mirrors` です。`ReservedRegion` は `frame` のほかに `isActive`、`kind`、`margins` を持ちます（iOS 27.1+ Beta）。
 
 グリッド状のレイアウトでは列数を偶数にしておくと、折り目で分かれたときにきれいに割れます。折り目の状態によらず偶数を保ちたい場合に `.includeInactive` が効きます。
+
+**Duo 固有の寸法をハードコードしないでください。**アラートのようなシステムコンポーネントは、本のように折ったときも卓上に立てたときも読みやすく押しやすい位置へ自動で動きます。動かないのはコンテンツ領域に置いた自前の部品です。購入・カートへ追加・無料トライアル開始のような収益に直結するボタンが折り目に重なる構成なら、reserved regions で折り目がアクティブかどうかを見て置き場所を選び直してください。単独の要素を動かしたい場合がこの API の出番です。
 
 ## displacement（要素の移動）
 
@@ -151,7 +174,13 @@ vc.setViewController(upNextVC, for: .secondary)
 
 arrangement view を使うと、姿勢が変わったときに2つのビューが滑るように分かれるアニメーションが得られます（TV アプリで部分的に折ると動画と操作部が分かれる動き）。姿勢ごとに独自に UI を切り替えるより、遷移が自然になります。
 
+**iPhone Duo 専用ではありません。**折りたたまない端末でも、指定した条件が満たされていれば同じように働きます。2列を並べられる幅があれば2列、なければ単一のビューになり、これは内側と外側のディスプレイを行き来するときの挙動と同じです。`HStack` / `VStack` / `ZStack` を `if` で切り替える書き方から離れる手段として使えます。
+
 ## 姿勢ごとの作り込み
+
+**姿勢を判定して分岐する前に、arrangement view と reserved regions で足りないか検討してください。**laptop か book かを直接見に行くのではなく、ビュー同士の関係を宣言して配置をシステムに任せるほうが素直です（Apple の音楽アプリは arrangement view を使い、分割の位置を知るために reserved region を参照しています）。
+
+部分的に折った状態が主要な使い方になるのか、姿勢を変える途中の一瞬にすぎないのかは Apple 内でも結論が出ていません。発売直後から作り込みすぎないでください。
 
 ベストプラクティスに従っていれば、各姿勢で問題なく表示されます。すべての姿勢に専用の体験を用意しようとするのは、Apple 自身が失敗例として挙げている進め方です。アプリの用途に合う姿勢（例: 卓上に置いたときに操作部を下側へ移す動画・ポッドキャストプレーヤー）があれば、そこだけ作り込んでください。
 
