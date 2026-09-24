@@ -52,6 +52,7 @@ iPhone Duo 向けの API の多くは iOS 27.1+ Beta としてドキュメント
 
 ## 更新履歴
 
+- 2026-09-25: Xcode 27.1 beta の iPhone Duo シミュレータで reserved regions が0件になることを反映し、折り目回避の検証方法を追記
 - 2026-09-18: iPhone Duo Group Lab（2026-09-17）の回答と、Apple の記事「Preparing your app for iPhone Duo」「Registering a camera capture accessory on iPhone Duo」を反映。未収載だった3つの API の掲載を確認
 - 2026-09-17: Apple のカメラ関連ドキュメント2本と iOS 27.1 Beta の API リファレンスを反映
 - 2026-09-17: iPhone Duo Group Lab（2026-09-16）の回答を反映
