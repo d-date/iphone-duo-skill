@@ -1,14 +1,14 @@
-# レイアウト
+# Layout
 
 ## size class
 
-| 状態 | 水平 | 垂直 |
+| State | Horizontal | Vertical |
 |---|---|---|
-| 外側ディスプレイ・縦向き | compact | regular |
-| 外側ディスプレイ・横向き | compact | compact |
-| 内側ディスプレイ | regular | regular |
+| Outer display, portrait | compact | regular |
+| Outer display, landscape | compact | compact |
+| Inner display | regular | regular |
 
-設計上は「外側 = compact width、内側 = regular width」の2つを対象にすれば、すべての姿勢の土台になります。姿勢ごとに個別のレイアウトを作る必要はありません。
+Designing for two cases, outer = compact width and inner = regular width, provides a foundation for every pose. You do not need a separate layout for each pose.
 
 ```swift
 // SwiftUI
@@ -16,35 +16,35 @@
 
 // UIKit
 traitCollection.horizontalSizeClass
-// 変化への追従は registerForTraitChanges(_:action:)（iOS 17.0+）
+// Track changes with registerForTraitChanges(_:action:) (iOS 17.0+)
 ```
 
-固定幅、ブレークポイント、特定の画面に結び付いた寸法は避けてください。外側ディスプレイで縦向きと横向きを区別したい場合も、2軸の size class が異なるので判断できます。ただしまず「区別する必要が本当にあるか」を疑ってください。
+Avoid fixed widths, breakpoints, and dimensions tied to a specific screen. If you need to distinguish portrait from landscape on the outer display, the size classes differ across the two axes, so you can use them. First question whether that distinction is necessary at all.
 
-### 画面・向き・端末サイズに頼らない
+### Do not rely on the screen, orientation, or device size
 
-ウインドウは scene から作り、サイズは変わるたびに読み直し、縦長か横長かは bounds で判断します。
+Create windows from a scene, read size again whenever it changes, and use bounds to determine whether the layout is tall or wide.
 
 ```swift
-// UIKit: ウインドウは scene から作る
-// 変更前: UIWindow(frame: UIScreen.main.bounds)
+// UIKit: Create the window from a scene
+// Before: UIWindow(frame: UIScreen.main.bounds)
 let window = UIWindow(windowScene: windowScene)
 
 final class GalleryViewController: UIViewController {
-    // サイズは変わるたびに読み直す。起動時や viewIsAppearing で一度読むだけでは足りない
+    // Read size again whenever it changes. Reading it once at launch or in viewIsAppearing is not enough
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        // 変更前: UIScreen.main.bounds、UIDevice.current.orientation、bounds.height == 844 などでの判定
+        // Before: Decisions based on UIScreen.main.bounds, UIDevice.current.orientation, bounds.height == 844, etc.
         let isWide = view.bounds.width > view.bounds.height
         updateColumns(isWide: isWide)
-        // 全面のメディアは、横長で重要な部分が欠けるなら fit に切り替える
+        // For full-bleed media, switch to fit if a wide layout crops important content
         heroImageView.contentMode = isWide ? .scaleAspectFit : .scaleAspectFill
     }
 }
 ```
 
 ```swift
-// SwiftUI: 利用できるサイズの変化を onGeometryChange(for:of:action:) で受け取る
+// SwiftUI: Receive changes to the available size with onGeometryChange(for:of:action:)
 struct GalleryView: View {
     @State private var isWide = false
 
@@ -59,14 +59,14 @@ struct GalleryView: View {
 }
 ```
 
-`Gallery`、`updateColumns(isWide:)`、`heroImageView` はこの例のための独自の名前です。
+`Gallery`, `updateColumns(isWide:)`, and `heroImageView` are custom names used for this example.
 
-### 分岐で状態を失わない
+### Preserve state across branches
 
-size class で `if` を切り、分岐ごとに別のコンテナを使っている SwiftUI のコードは、分岐が切り替わった時点で片方のビュー階層が捨てられます。状態を上位に持ち上げていなければ失われます。
+SwiftUI code that uses an `if` on size class with a different container in each branch discards one view hierarchy when the branch changes. State is lost unless it has been lifted to a parent.
 
 ```swift
-// 避ける: 分岐ごとに別のコンテナ
+// Avoid: A different container in each branch
 if horizontalSizeClass == .regular {
     NavigationSplitView { ... } detail: { ... }
 } else {
@@ -74,36 +74,36 @@ if horizontalSizeClass == .regular {
 }
 ```
 
-内側と外側のディスプレイを行き来してもアプリは作り直されません。破棄と再生成ではなくリサイズなので、標準のナビゲーションコンテナを使っていれば状態はそのまま引き継がれます。分岐そのものをやめられないか（`NavigationSplitView` 単体や `ArrangementView` で吸収できないか）を先に検討してください。
+The app is not recreated when it moves between the inner and outer displays. This is resizing, not destruction and recreation, so standard navigation containers preserve state. First consider removing the branch itself, for example by using only `NavigationSplitView` or handling the difference with `ArrangementView`.
 
-内側ディスプレイで縦横のレイアウトを変えたい場合、現在の向きは environment と trait から取れますが、判断は利用できる幅で行ってください。iPad では横向きのまま幅の狭いウインドウを作れるためです。分割ビューなどのコンテナに列の判断を任せ、グリッドは実際の幅に合わせます（例: 横向きで2列、縦向きで1列）。
+If you want different portrait and landscape layouts on the inner display, you can obtain the current orientation from the environment and traits, but base decisions on available width. On iPad, a narrow window can exist even in landscape. Let containers such as split views decide how to present columns, and size grids to the actual width (for example, two columns in landscape and one in portrait).
 
-### 3列レイアウト
+### Three-column layouts
 
-iPad で3列のアプリは、内側ディスプレイでは実質2列を同時に表示します。縦向きでは詳細だけを表示し、左上のボタンでサイドバーをオーバーレイ表示します。SwiftUI は `NavigationSplitView`、UIKit は `UISplitViewController` を使ってください。本のように部分的に折ると 50/50 に自動調整されます。情報量の多いアプリでは、タブをサイドバーとして表示する選択肢もあります。
+An iPad app with three columns effectively displays two columns at once on the inner display. In portrait, it displays only the detail, with a button at the upper left to show the sidebar as an overlay. Use `NavigationSplitView` in SwiftUI and `UISplitViewController` in UIKit. Partially folding the device like a book automatically adjusts the split to 50/50. For information-dense apps, displaying tabs as a sidebar is another option.
 
-### シートとタブ
+### Sheets and tabs
 
-地図の上にシートを重ね、その中にタブバーを置く構成（Find My など）で、広い画面ではタブバーとシートを分けるべきか迷う場合: タブがシートの中身を切り替えているなら一緒にしておきます。タブごとに別のシートを持つ構成なら分ける選択肢があります。
+For a sheet over a map with a tab bar inside it (such as Find My), if you are unsure whether to separate the tab bar and sheet on a larger display: keep them together if the tabs switch the sheet's contents. If each tab has a separate sheet, separating them is an option.
 
 ## safe area
 
-非対称になることが前提です。垂直バーが片側に寄るため、左右のインセットが揃いません。Split View では自分のアプリが左右どちらにも来ます。
+Assume asymmetry. Vertical bars sit on one side, so left and right insets differ. In Split View, your app can be on either side.
 
 ```swift
-// 避ける: 向かい合う辺が等しいという前提
+// Avoid: Assuming equal insets on opposite edges
 let width = view.bounds.width - view.safeAreaInsets.left * 2
 
-// 各辺を個別に扱う
+// Handle each edge separately
 let width = view.bounds.inset(by: view.safeAreaInsets).width
 ```
 
-コンテンツのインセットも非対称です。片側の値を使って左右をそろえるのではなく、システムが返す実際の値を使ってください。縦向き固定だったアプリは上下の safe area しか考慮していないことが多く、左右の前提が残りやすい箇所です。
+Content insets are also asymmetric. Use the actual system-provided values instead of using one edge's value to equalize both sides. Portrait-only apps often account only for the top and bottom safe area, making them a common place for left/right assumptions to remain.
 
-配置の原則は「前景は safe area の内側、背景はその外側まで」です。SwiftUI は既定でコンテンツが safe area 内に入るため、意識するのは背景を広げるときだけです。
+The placement rule is: foreground inside the safe area, background extending beyond it. SwiftUI places content inside the safe area by default, so you only need to account for this when extending backgrounds.
 
 ```swift
-// SwiftUI: 背景だけ広げる
+// SwiftUI: Extend only the background
 Color.accentColor.ignoresSafeArea()
 
 // UIKit
@@ -111,17 +111,17 @@ foreground.frame = view.bounds.inset(by: view.safeAreaInsets)
 backgroundView.frame = view.bounds
 ```
 
-縦向き固定のアプリは固定を外し、横向きで leading と trailing の safe area を確認してください。`safeAreaInsets.left * 2` のように片側を2倍している箇所が典型的な壊れどころです。サイドバーを持つ iPad アプリは leading 側をすでに扱っているぶん有利です。
+Remove the portrait lock and check the leading and trailing safe area in landscape. Expressions such as `safeAreaInsets.left * 2`, which double one edge's inset, are typical failure points. iPad apps with sidebars have an advantage because they already handle the leading edge.
 
-インセットの取得は SwiftUI が `GeometryProxy.safeAreaInsets`、UIKit が `UIView.safeAreaInsets` です。UIKit には領域ごとのガイドを返す `UIView.LayoutRegion`（iOS 26.0+）もあり、`layoutGuide(for:)` / `edgeInsets(for:)` で safe area・margins・readable content を角への追従つきで取得できます。
+Read insets through `GeometryProxy.safeAreaInsets` in SwiftUI and `UIView.safeAreaInsets` in UIKit. UIKit also provides `UIView.LayoutRegion` (iOS 26.0+), which returns guides for individual regions. Use `layoutGuide(for:)` / `edgeInsets(for:)` to obtain safe area, margins, and readable content with corner adaptation.
 
-バーを持たないアプリで、safe area 全体ではなくカメラとステータスバーのある領域だけを避けたい場合は、`UIView.LayoutRegion` の corner adaptation でその領域だけを尊重し、残りは端まで描けます（全画面のゲームなど）。
+For apps without bars that need to avoid only the camera and status bar region rather than the entire safe area, use corner adaptation on `UIView.LayoutRegion` to respect that region while drawing to the remaining edges (for example, full-screen games).
 
-## 画面の角
+## Display corners
 
-iOS 26 の Concentricity API が iPhone Duo の画面形状に対応するよう更新されています。
+The iOS 26 Concentricity API has been updated to support iPhone Duo's display shape.
 
-外側ディスプレイの4隅は半径がそろっていません（ヒンジから遠い側のほうが丸い）。またこれまで角を扱う必要がなかった位置に角が現れます。iPad 向けに角の対応を済ませていても、扱う場面が増えていないか確認してください。
+The four corners of the outer display do not have equal radii: the side farther from the hinge is rounder. Corners also appear in positions where you previously did not need to handle them. Even if you already support corners on iPad, check whether there are additional cases to handle.
 
 ```swift
 // SwiftUI
@@ -133,44 +133,44 @@ view.cornerConfiguration = .uniformCorners(radius: .containerConcentric(minimum:
 
 ## reserved regions
 
-ヒンジと内外のカメラが占める領域です。3種類あります。
+These are regions occupied by the hinge and the inner and outer cameras. There are three kinds.
 
-| 領域 | 存在する条件 |
+| Region | When it exists |
 |---|---|
-| 外側の前面カメラ | 常に存在。Live Activities では Dynamic Island へ広がる |
-| 内側の前面カメラ | カメラが作動しているときだけ |
-| 折り目 | 部分的に開いているとき。内側ディスプレイを複数の領域に分割する |
+| Outer front camera | Always present. Expands into the Dynamic Island for Live Activities. |
+| Inner front camera | Only while the camera is active. |
+| Fold | When partially folded. Divides the inner display into multiple regions. |
 
-iPadOS のウインドウコントロールと同じように、レイアウトが以前から適応してきた領域として扱えば十分です。標準コンポーネントは自動で避けます。独自コンポーネントで避ける必要がある場合に API を使います。
+Treat them like regions your layout has already adapted to, such as iPadOS window controls. Standard components avoid them automatically. Use the APIs when custom components need to avoid them.
 
 ```swift
 // SwiftUI
 GeometryReader { proxy in
-    let regions = proxy.reservedRegions(kind: .division)   // 折り目
+    let regions = proxy.reservedRegions(kind: .division)   // Fold
     let frames = regions.map(\.frame)
 }
 
 // UIKit
 let regions = view.reservedRegions(kind: .division)
 
-// 非アクティブな領域も含める
+// Include inactive regions too
 proxy.reservedRegions(kind: .division, options: .includeInactive)
 
-// カメラは .occlusion
+// Cameras use .occlusion
 proxy.reservedRegions(kind: .occlusion)
 ```
 
-SwiftUI の宣言は `reservedRegions(kind:options:layoutDirectionBehavior:)` で、`options` の既定値は空、`layoutDirectionBehavior` の既定値は `.mirrors` です。`ReservedRegion` は `frame` のほかに `isActive`、`kind`、`margins` を持ちます（iOS 27.1+ Beta）。
+The SwiftUI declaration is `reservedRegions(kind:options:layoutDirectionBehavior:)`. The default for `options` is empty, and the default for `layoutDirectionBehavior` is `.mirrors`. In addition to `frame`, `ReservedRegion` has `isActive`, `kind`, and `margins` (iOS 27.1+ Beta).
 
-グリッド状のレイアウトでは列数を偶数にしておくと、折り目で分かれたときにきれいに割れます。折り目の状態によらず偶数を保ちたい場合に `.includeInactive` が効きます。
+An even column count lets a grid divide evenly at the fold. Use `.includeInactive` if you want to keep the count even regardless of the fold's state.
 
-**Duo 固有の寸法をハードコードしないでください。**アラートのようなシステムコンポーネントは、本のように折ったときも卓上に立てたときも読みやすく押しやすい位置へ自動で動きます。動かないのはコンテンツ領域に置いた自前の部品です。購入・カートへ追加・無料トライアル開始のような収益に直結するボタンが折り目に重なる構成なら、reserved regions で折り目がアクティブかどうかを見て置き場所を選び直してください。単独の要素を動かしたい場合がこの API の出番です。
+**Do not hard-code Duo-specific dimensions.** System components such as alerts automatically move to positions that are easy to read and tap, whether the device is folded like a book or standing on a table. Custom components in the content area do not move automatically. If a button tied directly to revenue, such as purchase, add to cart, or start a free trial, overlaps the fold, use reserved regions to check whether the fold is active and choose a new position. This API is for moving an individual element.
 
-外側カメラの領域へカスタム UI を重ねると、タッチが抑制されたり期待どおりに届かなかったりします。reserved regions の API で領域を確認してください。
+Custom UI placed over the outer camera region can have touches suppressed or delivered unexpectedly. Check the region with the reserved regions API.
 
-### シミュレータでの検証
+### Testing in the simulator
 
-シミュレータでも reserved regions は返ります。折り曲げて返った division region を描くオーバーレイを重ね、折り目やカメラを避ける自前のレイアウトが領域に重ならないか確認してください。
+The simulator also returns reserved regions. Partially fold the device and overlay a drawing of the returned division region to verify that custom layouts intended to avoid the fold or cameras do not overlap the regions.
 
 ```swift
 struct DivisionRegionOverlay: View {
@@ -189,24 +189,24 @@ struct DivisionRegionOverlay: View {
 // content.overlay { DivisionRegionOverlay() }
 ```
 
-2026-09-28 に Xcode 27.1 beta の iOS 27.1 シミュレータで確認した値は、内側ディスプレイを横向きで折り曲げると `.division` が中央の幅 40pt の縦の帯、`margins` が左右 20pt ずつです。閉じた外側ディスプレイでは `.occlusion` が2件返ります。これらの寸法をレイアウトにハードコードせず、返された領域を使ってください。
+Values checked on 2026-09-28 in Xcode 27.1 beta's iOS 27.1 simulator: when the inner display is partially folded in landscape, `.division` is a vertical strip 40pt wide at the center, with `margins` of 20pt on each side. The closed outer display returns two `.occlusion` regions. Use the returned regions; do not hard-code these dimensions into your layout.
 
-平らな状態では division が非アクティブになるため、アクティブな領域が0件なら折り目なしとして振る舞うフォールバックを持たせてください。
+When flat, division becomes inactive. Provide a fallback that behaves as though there is no fold when there are zero active regions.
 
-## displacement（要素の移動）
+## displacement (moving elements)
 
-利用可能な空間に合わせて既存要素のフレームを調整する**設計パターン**です。`displacement` という API はありません。自分で動かす場合は reserved regions で領域を問い合わせ、結果を自分のレイアウトに反映します。
+A **design pattern** that adjusts existing elements' frames to the available space. There is no API named `displacement`. To move elements yourself, query reserved regions and apply the results to your layout.
 
-指針:
+Guidelines:
 
-- 独立して適応できる要素は単独で、連携する要素は関係を保って一緒に移動する
-- 移動元との視覚的な関係を弱める過度な移動は避ける
-- 記事・フィード・文書・リストなどの連続スクロールコンテンツは移動させない（スクロールで適応済みのため、移動は連続性を妨げる）
-- 移動先は要素の目的と端末の使用状態に合わせる
+- Move independently adaptable elements on their own; move related elements together while preserving their relationships.
+- Avoid excessive movement that weakens the visual relationship to the original position.
+- Do not move continuously scrolling content such as articles, feeds, documents, or lists. Scrolling already provides adaptation, and movement disrupts continuity.
+- Choose destinations that suit the element's purpose and how the device is being used.
 
-## arrangement（2ビューの配置）
+## arrangement (laying out two views)
 
-primary と secondary の2つのビューを持つレイアウトコンテナです。ディスプレイのサイズ、向き、reserved regions に応じて配置を決めます。iOS 27.1 で利用可能になります。
+A layout container with two views, primary and secondary. It chooses their arrangement based on display size, orientation, and reserved regions. It becomes available in iOS 27.1.
 
 ```swift
 // SwiftUI
@@ -225,34 +225,34 @@ vc.setViewController(playerVC, for: .primary)
 vc.setViewController(upNextVC, for: .secondary)
 ```
 
-2つのスタイルがあります。
+There are two styles.
 
-- **split**: 横長なら水平、縦長なら垂直に分割。`.split.axes(.horizontal)` で軸を制限でき、その軸が主軸に対応しない場合は単一ビューになる
-- **overlay**: 通常は重ね合わせ、折ると横並びを優先。重なり順は SwiftUI が `@Environment(\.overlayArrangementZIndex)`、UIKit が `state(for:)` の `zIndex` で取れる
+- **split**: Splits horizontally in a wide layout and vertically in a tall layout. Restrict the axis with `.split.axes(.horizontal)`; if that axis does not match the primary axis, it becomes a single view.
+- **overlay**: Normally overlays the views, preferring a side-by-side layout when folded. Read the stacking order through `@Environment(\.overlayArrangementZIndex)` in SwiftUI or the `zIndex` from `state(for:)` in UIKit.
 
-移行の目安は、`HStack` / `VStack` による分割は split、`ZStack` による重ね合わせは overlay です。既存パターンに当てはまらない場合、前景と背景の関係が明確なら overlay、主内容と詳細で双方を隠したくないなら split を検討します。
+As a migration guide, use split for divisions built with `HStack` / `VStack`, and overlay for layering built with `ZStack`. If neither existing pattern fits, consider overlay when the foreground/background relationship is clear, or split when you have main content and detail and want neither hidden.
 
-**入れ子の制約は向きが逆なので注意してください。**
+**Note that the nesting restrictions run in opposite directions.**
 
-- `ArrangementView` の**中に** `NavigationSplitView` などのナビゲーションコンテナを置かない
-- `List` や `ScrollView` の**中に** `ArrangementView` を置かない
+- Do not place navigation containers such as `NavigationSplitView` **inside** `ArrangementView`.
+- Do not place `ArrangementView` **inside** `List` or `ScrollView`.
 
-ナビゲーションは `ArrangementView` の外側に置きます。
+Place navigation outside `ArrangementView`.
 
-arrangement view を使うと、姿勢が変わったときに2つのビューが滑るように分かれるアニメーションが得られます（TV アプリで部分的に折ると動画と操作部が分かれる動き）。姿勢ごとに独自に UI を切り替えるより、遷移が自然になります。
+An arrangement view animates the two views sliding apart when the pose changes, as the TV app separates video and controls when partially folded. This produces a more natural transition than switching custom UI for each pose.
 
-**iPhone Duo 専用ではありません。**折りたたまない端末でも、指定した条件が満たされていれば同じように働きます。2列を並べられる幅があれば2列、なければ単一のビューになり、これは内側と外側のディスプレイを行き来するときの挙動と同じです。`HStack` / `VStack` / `ZStack` を `if` で切り替える書き方から離れる手段として使えます。
+**It is not exclusive to iPhone Duo.** It works the same way on nonfolding devices when the specified conditions are met. With enough width for two columns, it shows two; otherwise, it shows a single view. This is the same behavior as moving between the inner and outer displays. Use it to move away from switching between `HStack` / `VStack` / `ZStack` with `if` branches.
 
-## 姿勢ごとの作り込み
+## Tailoring the experience to poses
 
-**姿勢を判定して分岐する前に、arrangement view と reserved regions で足りないか検討してください。**laptop か book かを直接見に行くのではなく、ビュー同士の関係を宣言して配置をシステムに任せるほうが素直です（Apple の音楽アプリは arrangement view を使い、分割の位置を知るために reserved region を参照しています）。
+**Before detecting poses and branching, consider whether arrangement view and reserved regions are sufficient.** Declare relationships between views and let the system arrange them, rather than directly checking for laptop or book. Apple's Music app uses an arrangement view and consults a reserved region to find the split position.
 
-部分的に折った状態が主要な使い方になるのか、姿勢を変える途中の一瞬にすぎないのかは Apple 内でも結論が出ていません。発売直後から作り込みすぎないでください。
+Even within Apple, there is no conclusion on whether partially folded use will be a primary mode or merely a brief state during pose changes. Do not invest too heavily in it immediately at launch.
 
-ベストプラクティスに従っていれば、各姿勢で問題なく表示されます。すべての姿勢に専用の体験を用意しようとするのは、Apple 自身が失敗例として挙げている進め方です。アプリの用途に合う姿勢（例: 卓上に置いたときに操作部を下側へ移す動画・ポッドキャストプレーヤー）があれば、そこだけ作り込んでください。
+Following best practices gives you a layout that works in every pose. Apple itself cites building a dedicated experience for every pose as a failed approach. If a pose suits your app's purpose, such as a video or podcast player moving controls to the lower half when placed on a table, tailor that experience specifically.
 
-## アクセシビリティ
+## Accessibility
 
-- 内側ディスプレイは Dynamic Type の大きなサイズで効果が大きい。readable content guide などを使い、文字サイズの変更とリサイズの両方に耐えるようにする
-- VoiceOver は2つのディスプレイで同時に動作する
-- 「透明度を下げる」を有効にした状態で垂直バーまわりを確認する（`references/bars.md` 参照）
+- The inner display is particularly beneficial at large Dynamic Type sizes. Use a readable content guide or similar tools to handle both text-size changes and resizing.
+- VoiceOver works on both displays simultaneously.
+- Check the area around vertical bars with Reduce Transparency enabled (see `references/bars.md`).

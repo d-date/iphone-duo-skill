@@ -1,95 +1,95 @@
 ---
 name: iphone-duo
-description: Apple の iPhone Duo（複数ディスプレイと折り目を持つ iPhone）にアプリを対応させるための実装ガイド。size class・safe area の非対称性・reserved regions・垂直バー・arrangement・ヒンジ・scene accessories・デュアル前面カメラを扱う。iPhone Duo、折りたたみ iPhone、内側/外側ディスプレイ、垂直ツールバー、ヒンジ角度、reserved region、ArrangementView、CameraCaptureAccessory、AVCaptureDeviceDirectionCoordinator のいずれかに言及があれば必ず使うこと。「iPhone Duo に対応させたい」「折りたたみでレイアウトが崩れる」「バーが縦になる」「開閉でカメラを切り替えたい」といった相談でも、iPhone Duo という語が出ていなくても iOS の複数ディスプレイ・折り目・姿勢変化の話題なら参照すること。
+description: Implementation guide for adapting apps to Apple's iPhone Duo, an iPhone with multiple displays and a fold. Covers size class, safe area asymmetry, reserved regions, vertical bars, arrangement, hinge, scene accessories, and dual front cameras. Always use this skill when iPhone Duo, a foldable iPhone, inner/outer displays, vertical toolbars, hinge angle, reserved region, ArrangementView, CameraCaptureAccessory, or AVCaptureDeviceDirectionCoordinator is mentioned. Also consult it for requests such as "adapt my app to iPhone Duo", "my layout breaks when folded", "the bars become vertical", or "switch cameras when opening or closing", and for any iOS discussion of multiple displays, folds, or pose changes even when iPhone Duo is not named.
 ---
 
-# iPhone Duo 対応
+# Adapting apps to iPhone Duo
 
-Apple の Tech Talks 6本、Human Interface Guidelines、Apple Developer Documentation、iPhone Duo Group Lab（2026-09-16 と 2026-09-17 の2回）を一次情報として整理した実装ガイドです。
+An implementation guide based on six Apple Tech Talks, the Human Interface Guidelines, Apple Developer Documentation, and two iPhone Duo Group Labs (2026-09-16 and 2026-09-17) as primary sources.
 
-App Store Connect では 2026-10-05 から最適化したアプリを提出でき、2027年4月以降の提出では iPhone Duo のスクリーンショットが必須です。
+App Store Connect accepts optimized apps starting on 2026-10-05. iPhone Duo screenshots are required for submissions from 2027-04 onward.
 
-## 最初に押さえること
+## Start here
 
-iPhone Duo は 2026-10-23 に iOS 27.1 搭載で発売されます。iPhone Duo 対応の SDK と Device Hub は Xcode 27.1（2026-09-18 に beta、10-05 に Release Candidate が公開）に含まれます。
+iPhone Duo launches on 2026-10-23 with iOS 27.1. The SDK with iPhone Duo support and Device Hub are included in Xcode 27.1 (beta released on 2026-09-18, Release Candidate on 2026-10-05).
 
-iPhone Duo は内側と外側の2つのディスプレイを持ち、中央のヒンジで開閉します。**アプリは iPhone アプリのまま**で、開閉によって発生するのはサイズ変更です。専用の user interface idiom はなく phone を返します。内側ディスプレイの水平・垂直ともに regular という組み合わせが iPhone では初めて、という点だけが新しい要素です。
+iPhone Duo has two displays, inner and outer, and opens and closes around a central hinge. **Your app remains an iPhone app**; opening and closing cause a resize. There is no dedicated user interface idiom: it returns phone. The only new aspect is that the inner display has regular size classes on both the horizontal and vertical axes, a first for iPhone.
 
-内側ディスプレイで全画面表示していたアプリは、閉じると外側ディスプレイへ移り、そのまま動き続けます。バックグラウンドへは回りません。例外は Split View で、2つのアプリが並んでいる場合は直前に操作していた方が外側へ上がり、もう一方がバックグラウンドへ回ります。閉じてすぐ開けば両方戻り、時間が空くと外側にいたアプリが内側全体を占めます。
+An app running full screen on the inner display moves to the outer display when the device closes and keeps running. It does not enter the background. Split View is the exception: with two apps side by side, the most recently used app moves to the outer display and the other enters the background. If you reopen immediately, both return; after a delay, the app that was on the outer display fills the inner display.
 
-対応の土台は「リサイズに耐えるレイアウト」です。すでに iPad や iPhone ミラーリングでのリサイズに対応しているなら、その資産がそのまま効きます。
+The foundation is a layout that handles resizing. Existing support for resizing on iPad or through iPhone Mirroring carries over directly.
 
-### SDK による段階
+### Behavior by SDK
 
-| ビルド SDK | 挙動 |
+| Build SDK | Behavior |
 |---|---|
-| iOS 27 より前（Xcode 26） | 動作するがレターボックス表示。外側は iPhone mini に近い比率で垂直バー側に黒帯、内側は同じ比率で中央に表示され、姿勢の変化に反応しない |
-| iOS 27 | リサイズ対応が有効になる（オプトアウト不可）。内側ディスプレイのほぼ全体を使うが、ステータスバー下の側面に黒帯が残る |
-| iOS 27.1 | 画面端まで広がり、標準のバーがステータスバー下に縦配置される |
+| Before iOS 27 (Xcode 26) | Runs letterboxed. On the outer display, the aspect ratio is close to iPhone mini, with a black strip on the vertical bars side. On the inner display, it is centered at the same aspect ratio and does not respond to pose changes. |
+| iOS 27 | Resizing support is enabled (no opt-out). Uses almost the entire inner display, but a black strip remains along the side below the status bar. |
+| iOS 27.1 | Extends to the display edges, with standard bars placed vertically below the status bar. |
 
-最初からすべての姿勢を作り込む必要はありません。発売日にはリサイズ対応とベストプラクティスに沿った状態を出し、その後に改善する進め方が Apple から勧められています。
+You do not need to build a tailored experience for every pose from the start. Apple recommends shipping resizing support and following best practices for launch, then improving the experience afterward.
 
-検証は Xcode 27.1 の Device Hub にある iPhone Duo シミュレータで行います。ヒンジの角度を変えられるほか、閉じた状態・開いた状態・book・laptop・tent の姿勢を選べます。姿勢そのものだけでなく、姿勢から姿勢へ移る途中の表示も確認してください。シミュレータでも reserved regions が返るため、折り曲げて領域を描き、折り目やカメラを避ける自前のレイアウトを確認してください（`references/layout.md` の「シミュレータでの検証」参照）。内側と外側のディスプレイを同時に点灯させる状態はシミュレータでは再現できません（カメラが必要なため）。なお iOS 27.1 のシミュレータは、カメラを使うアプリを起動できるようになります。映像は映らず「利用できるカメラがない」と判定されますが、それ以外の UI は確認できます。
+Test with the iPhone Duo simulator in Xcode 27.1's Device Hub. You can change the hinge angle and select closed, open, book, laptop, and tent poses. Check transitions between poses as well as each pose itself. The simulator also returns reserved regions: partially fold it and draw the regions to check custom layouts that avoid the fold or cameras (see "Testing in the simulator" in `references/layout.md`). The simulator cannot reproduce both the inner and outer displays being on at once, because this requires a camera. The iOS 27.1 simulator can now launch apps that use cameras. It shows no video and reports that no camera is available, but you can check the rest of the UI.
 
-リサイズ対応の確認には Device Hub の iOS resizable simulator も使えます。iPad で実行してウインドウをリサイズするか、iPhone のみのアプリなら macOS 27 の iPhone ミラーリングで両方向に極端なサイズまでリサイズして確認してください。ネイティブの体験全体を試すには iPhone Duo シミュレータが最良の方法です。iPhone ミラーリングは内側ディスプレイに近い比率になり、interface idiom も iPhone のままです。多くの不具合はこれで再現します。垂直バーによる safe area やマージンの非対称に起因する問題は、iPhone Duo シミュレータでないと見つかりにくい点に注意してください。
+You can also use Device Hub's iOS resizable simulator to check resizing support. Run on iPad and resize the window, or, for iPhone-only apps, use iPhone Mirroring on macOS 27 and resize to extreme sizes in both directions. The iPhone Duo simulator is the best way to test the full native experience. iPhone Mirroring uses an aspect ratio close to the inner display and retains the iPhone interface idiom. It reproduces many issues. Problems caused by safe area and margin asymmetry from vertical bars are harder to find without the iPhone Duo simulator.
 
-## どこを読むか
+## Which references to read
 
-作業内容に応じて必要な参照だけを読んでください。
+Read only the references needed for the task.
 
-| 参照 | 扱う内容 |
+| Reference | Coverage |
 |---|---|
-| `references/layout.md` | size class、safe area の非対称性、画面の角、reserved regions、arrangement |
-| `references/bars.md` | 垂直バー、項目の配置順、軸の制御、バッジ、オーバーフロー、シート、無効化 |
-| `references/scenes.md` | ヒンジ、マルチタスキング、複数ウインドウ、scene accessories、カメラアクセサリ、Core Motion、Web |
-| `references/camera.md` | デュアル前面カメラ、カメラの向き、プレビュー、回転 |
-| `references/checklist.md` | 既存アプリの移行・検証と App Store のチェックリスト |
+| `references/layout.md` | size class, safe area asymmetry, display corners, reserved regions, arrangement |
+| `references/bars.md` | vertical bars, item ordering, axis control, badges, overflow, sheets, disabling vertical bars |
+| `references/scenes.md` | hinge, multitasking, multiple windows, scene accessories, camera accessories, Core Motion, Web |
+| `references/camera.md` | dual front cameras, camera direction, previews, rotation |
+| `references/checklist.md` | Migration and validation for existing apps, and an App Store checklist |
 
-## 全体に効く原則
+## General principles
 
-これらは領域を問わず効いてくるので、先に頭に入れておくと判断が速くなります。
+These principles apply across all areas. Keep them in mind to make decisions more quickly.
 
-**size class で判断する。** user interface idiom から画面サイズやデバイス機能を推定したり、`UIDevice.current.orientation`・`statusBarOrientation`・`interfaceOrientation`（`windowScene.effectiveGeometry.interfaceOrientation` を含む）でレイアウトを分岐したりしないでください。縦長か横長かは bounds の幅と高さで判断し、`bounds.height == 844` のような端末サイズとの比較を除去してください。内側ディスプレイはアプリが宣言した supported interface orientations に従って回転せず、代わりにスケーリングされます。向きを見ても意図した結果になりません。縦向き専用のアプリでも、内側ディスプレイでは size class が regular/regular になります。現在の向きは environment や trait から読めますが、判断は利用できる幅で行ってください。`UIRequiresFullScreen` のような向きやサイズを固定する設定からは離れることが勧められています。
+**Use size class to make decisions.** Do not infer screen size or device capabilities from user interface idiom, or branch layouts on `UIDevice.current.orientation`, `statusBarOrientation`, or `interfaceOrientation` (including `windowScene.effectiveGeometry.interfaceOrientation`). Compare the width and height of bounds to determine whether the layout is tall or wide, and remove device-size comparisons such as `bounds.height == 844`. The inner display does not rotate according to the app's declared supported interface orientations; it scales instead. Checking orientation will not produce the intended result. Even portrait-only apps have regular/regular size classes on the inner display. You can read the current orientation from the environment or traits, but base decisions on available width. Moving away from settings that lock orientation or size, such as `UIRequiresFullScreen`, is recommended.
 
-**分岐でビュー階層を作り替えない。** size class で `if` を切り、分岐ごとに別のコンテナを使っている SwiftUI のコードは、切り替わった時点で片方のビュー階層が捨てられ、状態を上位に持ち上げていなければ失われます。iPad のリサイズでも起きていた問題ですが、iPhone Duo では内側ディスプレイから閉じた状態へ移るたびに表面化します。分岐そのものをやめられないか（`ArrangementView` などで置き換えられないか）を先に検討してください。
+**Do not rebuild the view hierarchy through branching.** SwiftUI code that uses an `if` on size class with a different container in each branch discards one view hierarchy when the branch changes. State is lost unless it has been lifted to a parent. This already happened during iPad resizing, but on iPhone Duo it surfaces every time the device goes from the inner display to closed. First consider removing the branch itself, for example by using `ArrangementView`.
 
-**画面を直接参照しない。** `UIScreen.main` は2画面のデバイスでは曖昧になり、ドキュメント上すでに非推奨です。environment、trait collection、scene の bounds を使い、画面が必要なら `window?.windowScene?.screen` から取ります。`UIWindow(frame: UIScreen.main.bounds)` は `UIWindow(windowScene:)` に置き換え、`UIScreen` は保持せず動的に取得してください。サイズは起動時や `viewIsAppearing` で一度読むだけにせず、`layoutSubviews` / `viewDidLayoutSubviews` で読み直し、サイズ変更時の処理は `viewWillTransition(to:with:)` に置いてください。画面スケールは `displayScale` / `traitCollection.displayScale` で足ります。
+**Do not reference the screen directly.** `UIScreen.main` is ambiguous on a two-display device and is already deprecated in the documentation. Use the environment, trait collection, and scene bounds. If you need a screen, obtain it from `window?.windowScene?.screen`. Replace `UIWindow(frame: UIScreen.main.bounds)` with `UIWindow(windowScene:)`, and retrieve `UIScreen` dynamically instead of retaining it. Do not read size just once at launch or in `viewIsAppearing`; read it again in `layoutSubviews` / `viewDidLayoutSubviews`, and put size-change handling in `viewWillTransition(to:with:)`. `displayScale` / `traitCollection.displayScale` is sufficient for display scale.
 
-**全面メディアの欠けを確認する。** `.scaleAspectFill` / `.aspectRatio(contentMode: .fill)` は横長で欠けないか確認し、size class やアスペクト比で fill と fit を切り替えるか焦点を指定してください。iOS 27.1 SDK でビルドしたアプリを出す前に、バーが縦になってもコンテンツが適応することを確認してください。
+**Check full-bleed media for cropping.** Check whether `.scaleAspectFill` / `.aspectRatio(contentMode: .fill)` crops content in wide layouts. Switch between fill and fit based on size class or aspect ratio, or specify a focal point. Before shipping an app built with the iOS 27.1 SDK, verify that content adapts when bars become vertical.
 
-**safe area は非対称になる。** 向かい合う辺のインセットが等しいという前提を置いたコードは壊れます。`view.bounds.width - insets.left * 2` のような書き方をやめ、各辺を個別に扱ってください。layout margins やコンテンツのインセットも同様に非対称です。片側の値を反対側に流用せず、システムが返す実際の値を使ってください。
+**The safe area becomes asymmetric.** Code that assumes opposite edges have equal insets will break. Stop using expressions such as `view.bounds.width - insets.left * 2` and handle each edge separately. Layout margins and content insets are also asymmetric. Use the actual system-provided values instead of reusing one edge's value for the opposite edge.
 
-**標準コンポーネントを使うと多くが自動で解決する。** 標準のナビゲーション、バー、シート、アラート、メニューは各姿勢と折り目に適応します。折り目を避ける動作もシステム側に組み込まれています。独自実装に置き換えるほど、自分で面倒を見る範囲が増えます。
+**Standard components handle much of the adaptation automatically.** Standard navigation, bars, sheets, alerts, and menus adapt to poses and the fold. The system also handles fold avoidance. Every custom replacement increases the work you must handle yourself.
 
-**抽象度の高い API から選ぶ。** 折り目に関する API は「ヒンジ角度 → reserved regions → arrangement view → システムコンポーネント」の層になっています。ヒンジ角度から自前で計算する前に、上位の層で足りないか検討してください。
+**Start with higher-level APIs.** Fold-related APIs form layers: hinge angle → reserved regions → arrangement view → system components. Before calculating a layout from the hinge angle yourself, consider whether a higher layer is sufficient.
 
-**これは電話である。** iPad 版があるならそのデザインは良い出発点ですが、そのまま持ち込まないでください。iPad にしか属さない要素は取り除くか idiom で分けます。逆に、iPhone Duo だけで動くアプリや、1つの姿勢だけを想定したアプリは作らないでください。利用者は製品ラインの1機種として扱います。iPad アプリを載せる第一歩は、ユニバーサル化して対応プラットフォームに iPhone を加えることです（Apple Vision Pro のような互換モードの有無については、明確な回答が出ていません）。
+**This is a phone.** An existing iPad design is a good starting point, but do not bring it over unchanged. Remove iPad-only elements or separate them by idiom. Likewise, do not build an app that works only on iPhone Duo or assumes a single pose. Users treat it as one model in the product line. The first step in bringing an iPad app over is to make it universal and add iPhone as a supported platform (there has been no clear answer on whether a compatibility mode like Apple Vision Pro's exists).
 
-**1つの端末として扱う。** 開く操作は、アプリのウインドウを横に広げるリサイズとして設計します。利用者はさまざまな持ち方・置き方をするため、特定の姿勢だけを前提にしないでください。卓上に立てる姿勢はカメラ側を下にしても外側ディスプレイを下にしても同じ体験になるべきです。姿勢ごとに UI を変える場合は、その間の遷移を滑らかにアニメーションできるかを考えます。
+**Treat it as one device.** Design opening as a resize that widens the app window. Users hold and place the device in many ways, so do not assume a particular pose. A tabletop pose should offer the same experience with either the camera side or the outer display facing down. If you change the UI by pose, consider whether you can animate transitions smoothly.
 
-## iOS 27.1 の API について
+## About the iOS 27.1 APIs
 
-arrangement、reserved regions、ヒンジ（UIKit）、垂直バーの制御、カメラの direction coordinator などは、2026-09-18 時点で **iOS 27.1+ Beta** としてドキュメントの公開を確認しています。ベータ版なので正式リリースまでに変わる可能性があります。
+As of 2026-09-18, documentation for arrangement, reserved regions, hinge (UIKit), vertical bar controls, the camera direction coordinator, and other APIs has been confirmed to be published as **iOS 27.1+ Beta**. These APIs may change before the final release.
 
-2026-09-18 時点で、このガイドが扱う API はすべてドキュメントで宣言を確認できています。
+As of 2026-09-18, declarations for every API covered by this guide have been confirmed in the documentation.
 
-iOS 16 など古いバージョンへの対応を続ける場合は、iPhone Duo 固有の部分を availability check で囲みます。範囲はアプリ次第で、新しい UI を別に作って古い UI を凍結する進め方も、条件を細かく切って同じ機能を全機種へ出し続ける進め方もあります。
+If you continue supporting older versions such as iOS 16, wrap iPhone Duo-specific code in availability checks. The scope depends on the app: you can build a separate new UI and freeze the old one, or use finer-grained conditions to keep offering the same features on all devices.
 
-**実装時は Xcode の補完と実機/シミュレータで確認してください。**
+**When implementing, verify with Xcode completion and on a device or simulator.**
 
-## 回答の仕方
+## How to respond
 
-説明・提案・検証結果は日本語で書いてください。API 名・型名・識別子・出典のタイトルは原綴りのまま扱います。
+Write explanations, proposals, and validation results in the user's language. Preserve the original spelling of API names, type names, identifiers, and source titles.
 
-未公開 API を扱う性質上、**確認できないシグネチャを推測で補わないでください。**Xcode の補完や実機・シミュレータで確かめられない場合は、その旨を明示したうえで提案してください。誤った綴りをそれらしく書くほうが、分からないと言うより害になります。
+Because this guide deals with unpublished APIs, **do not invent signatures you cannot verify.** If you cannot confirm them with Xcode completion or on a device or simulator, state that explicitly when proposing an implementation. A plausible but incorrect spelling is more harmful than saying you do not know.
 
-## 出典
+## Sources
 
 - [Three steps to make your app shine on iPhone Duo](https://developer.apple.com/iphone-duo/prepare/)
-- [Prepare and submit your apps for iPhone Duo（News）](https://developer.apple.com/news/?id=kkphp5qo)
-- [A Summary of the iPhone Duo Group Lab（Apple Developer Forums）](https://developer.apple.com/forums/thread/847644)
+- [Prepare and submit your apps for iPhone Duo (News)](https://developer.apple.com/news/?id=kkphp5qo)
+- [A Summary of the iPhone Duo Group Lab (Apple Developer Forums)](https://developer.apple.com/forums/thread/847644)
 
 - Tech Talks: Prepare your app for iPhone Duo / Raise the bar with iPhone Duo / Strike a pose with adaptive layouts on iPhone Duo / Leverage multiple displays and scenes on iPhone Duo / Build a great camera experience for iPhone Duo / Design for iPhone Duo
 - Human Interface Guidelines: Designing for iPhone Duo
-- Meet with Apple: iPhone Duo Group Lab（2026-09-16 / 2026-09-17）
-- Apple Developer Documentation: Preparing your app for iPhone Duo / Registering a camera capture accessory on iPhone Duo / Choosing a camera by the direction it faces / Supporting device rotation in your camera app / iOS 27.1 Beta API リファレンス
+- Meet with Apple: iPhone Duo Group Lab (2026-09-16 / 2026-09-17)
+- Apple Developer Documentation: Preparing your app for iPhone Duo / Registering a camera capture accessory on iPhone Duo / Choosing a camera by the direction it faces / Supporting device rotation in your camera app / iOS 27.1 Beta API reference

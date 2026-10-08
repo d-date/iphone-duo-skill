@@ -1,17 +1,17 @@
-# カメラ
+# Camera
 
-## 2つの前面カメラ
+## Two front cameras
 
-iPhone Duo は正方形センサーと超広角の画角を持つ前面カメラを2つ持ちます。外側ディスプレイ側と、内側のディスプレイ下埋め込み型です。
+iPhone Duo has two front cameras with square sensors and ultra-wide fields of view: one on the outer display side and one embedded under the inner display.
 
-選択肢は2つあります。
+There are two options.
 
-| | 解像度・フレームレート | 深度 | 開閉時の切り替え |
+| | Resolution / frame rate | Depth | Switching when opening or closing |
 |---|---|---|---|
-| Virtual Front Camera | 最大 1080p・60fps（両カメラ共通の機能のみ） | 非対応 | 自動 |
-| 個別のカメラ | 内側 1080p・最大60fps / 外側 最大 4K・120fps | 対応 | アプリが担当 |
+| Virtual Front Camera | Up to 1080p / 60fps (only features common to both cameras) | Not supported | Automatic |
+| Individual cameras | Inner: 1080p / up to 60fps; outer: up to 4K / 120fps | Supported | App-managed |
 
-前面位置と Wide または Ultra Wide のデバイスタイプで探索すると Virtual Front Camera が見つかります。
+Discover the Virtual Front Camera by searching for the front position and Wide or Ultra Wide device types.
 
 ```swift
 let session = AVCaptureDevice.DiscoverySession(
@@ -21,22 +21,22 @@ let session = AVCaptureDevice.DiscoverySession(
 )
 ```
 
-個別のカメラは `.builtInOuterUltraWideCamera` と `.builtInInnerUltraWideCamera` で指定します。全機能を使いたい場合や深度が必要な場合はこちらです。
+Specify individual cameras with `.builtInOuterUltraWideCamera` and `.builtInInnerUltraWideCamera`. Choose these when you need all features or depth.
 
-**まず「Virtual Front Camera で足りるか」を決めてください。**足りるなら切り替えを自分で書く必要がありません。既存アプリは Virtual Front Camera から始め、撮影が主目的のアプリで個別のカメラを使うのが Apple の示す使い分けです。
+**First decide whether Virtual Front Camera is sufficient.** If it is, you do not need to implement switching yourself. Apple's guidance is to start existing apps with Virtual Front Camera and use individual cameras in apps primarily intended for capture.
 
-Virtual Front Camera は仮想デバイスで、`isVirtualDevice` が `true` です。実際に配信している物理カメラは `activePrimaryConstituent` で分かります（セッションが動くまでは `nil`）。
+Virtual Front Camera is a virtual device with `isVirtualDevice` set to `true`. `activePrimaryConstituent` identifies the physical camera currently streaming (it is `nil` until the session runs).
 
-## カメラの向き
+## Camera direction
 
-縦向きに固定して UI 部品を個別に回す疑似的な自動回転を実装している場合は、rotation coordinator と direction coordinator の2つに置き換えてください。前者が撮影画面をどれだけ回せばよいかを、後者が使っているカメラがどちらを向いているかを教えます。前面カメラが2つあるため、前面カメラが利用者の方を向いているという前提は成り立ちません。自前で位置関係を計算しないでください。
+If you implement simulated autorotation by locking to portrait and rotating individual UI elements, replace it with a rotation coordinator and a direction coordinator. The former tells you how much to rotate the capture screen; the latter tells you which direction the camera in use faces. With two front cameras, you cannot assume that a front camera faces the user. Do not calculate the spatial relationships yourself.
 
-固定の `position`（前面・背面・不定）だけでは、カメラが利用者の方を向いているか判断できません。端末を開いたり裏返したりすると関係が変わるためです。たとえば開いて裏返すと、背面カメラと外側ディスプレイのカメラがどちらも利用者側を向きます（Apple の記事「Choosing a camera by the direction it faces」に、閉じた状態・開いた状態・開いて裏返した状態の図があります）。
+A fixed `position` (front, back, or unspecified) is not enough to determine whether a camera faces the user. That relationship changes when the device opens or turns over. For example, opening it and turning it over makes both the rear camera and outer display camera face the user (Apple's article "Choosing a camera by the direction it faces" illustrates the closed, open, and open-and-turned-over states).
 
-`AVCaptureDeviceDirectionCoordinator`（AVKit）が、**アプリのビューから見た**カメラの向きを報告します。
+`AVCaptureDeviceDirectionCoordinator` (AVKit) reports camera direction **relative to the app's view**.
 
 ```swift
-// init(view:deviceTypes:changeHandler:)（iOS 27.1+ Beta）。main actor で生成し、強参照で保持する
+// init(view:deviceTypes:changeHandler:) (iOS 27.1+ Beta). Create on the main actor and retain strongly
 directionCoordinator = AVCaptureDeviceDirectionCoordinator(
     view: previewView,
     deviceTypes: [.builtInOuterUltraWideCamera, .builtInInnerUltraWideCamera, .builtInDualWideCamera]
@@ -45,109 +45,109 @@ directionCoordinator = AVCaptureDeviceDirectionCoordinator(
 }
 ```
 
-生成にはビュー（向きの基準。描画先ではない）、監視するデバイスタイプ、変更ハンドラーを渡します。
+Pass a view (the reference for direction, not a rendering destination), device types to monitor, and a change handler.
 
-`deviceTypes` の注意:
+Notes on `deviceTypes`:
 
-- **背面カメラも含める。** iPhone Duo では背面カメラが利用者側を向くことがある
-- **Virtual Front Camera は報告されない。** 代わりに `.builtInOuterUltraWideCamera` と `.builtInInnerUltraWideCamera` を指定する
-- 外部カメラ、連係カメラ、デスクビューのカメラは指定しても無視される
+- **Include rear cameras too.** A rear camera on iPhone Duo can face the user
+- **Virtual Front Camera is not reported.** Specify `.builtInOuterUltraWideCamera` and `.builtInInnerUltraWideCamera` instead
+- External, Continuity Camera, and Desk View cameras are ignored even if specified
 
-たとえば端末を開いてビューが内側ディスプレイへ移ると、外側の前面カメラと背面カメラはどちらも backward-facing、内側の前面カメラが forward-facing として報告されます。
+For example, when the device opens and the view moves to the inner display, both the outer front camera and rear camera are reported as backward-facing, while the inner front camera is forward-facing.
 
-両ディスプレイを同時に使う場合は**ビューごとに coordinator を作ります**。同じ背面カメラでも、外側ディスプレイ側からは forward-facing、内側ディスプレイ側からは backward-facing になります。それぞれのビューを基準に報告されるためです。両ディスプレイを同時に使う仕組みそのものは `references/scenes.md` の「カメラアクセサリの登録」を参照してください。
+When using both displays simultaneously, **create a coordinator for each view**. The same rear camera is forward-facing relative to the outer display and backward-facing relative to the inner display, because each report is relative to its own view. For the mechanism that enables simultaneous use of both displays, see "Registering a camera accessory" in `references/scenes.md`.
 
-### 変更ハンドラーの書き方
+### Writing the change handler
 
-ハンドラーは生成直後に一度（初期状態）、以降は変化のたびに main actor で呼ばれます。最初の呼び出しまで `deviceDirections` は空です。
+The handler is called once immediately after creation (for the initial state), then on every change, on the main actor. `deviceDirections` is empty until the first call.
 
-渡される `AVCaptureDeviceDirectionMap`（iOS 27.1+ Beta）は `forwardFacingDeviceDescriptors` と `backwardFacingDeviceDescriptors` を持ちます。**forward-facing は「ビューと同じ向き」であって、`position == .front` ではありません。**向きを `position` やデバイスタイプから推定しないでください。画面が1つの iPhone でも同じコードで動きます（前面は forward、背面は backward、不定はどちらにも入らず、ハンドラーは1回だけ呼ばれる）。
+The supplied `AVCaptureDeviceDirectionMap` (iOS 27.1+ Beta) has `forwardFacingDeviceDescriptors` and `backwardFacingDeviceDescriptors`. **Forward-facing means facing the same direction as the view, not `position == .front`.** Do not infer direction from `position` or device type. The same code works on single-display iPhones (front is forward, back is backward, unspecified is in neither group, and the handler is called only once).
 
-使用中のカメラが forward-facing に残っているなら何もせず、なくなったときだけ代わりを選びます。選んだ descriptor はカメラ用 actor に渡し、**切り替えに成功してから**使用中のカメラとして記録してください。先に記録すると、デバイスを作れなかったときに実際のカメラと記録が食い違い、次の通知で切り替えが省略されます。
+If the current camera remains forward-facing, do nothing. Select a replacement only when it no longer does. Pass the chosen descriptor to the camera actor and record it as the current camera **only after switching succeeds**. Recording it first creates a mismatch between the actual camera and the record if device creation fails, causing the next notification to skip switching.
 
-coordinator はビューに紐づくため main actor に隔離されます。ハンドラーに渡されるのは `AVCaptureDevice` ではなく `AVCaptureDeviceDescriptor` です。これは main actor で安全に扱える sendable な表現で、`AVCaptureDevice` を生成するのに必要な情報を含みます。
+The coordinator is tied to a view and therefore isolated to the main actor. The handler receives `AVCaptureDeviceDescriptor`, not `AVCaptureDevice`. This is a sendable representation that is safe to use on the main actor and contains the information needed to create an `AVCaptureDevice`.
 
-**ハンドラーの中で AVFoundation の API を直接呼ばないでください。**descriptor をカメラ用 actor に渡し、そこで操作します。
+**Do not call AVFoundation APIs directly in the handler.** Pass the descriptor to the camera actor and perform operations there.
 
-向きが変わったときにやることは3つですが、**実行する場所が違います**。
+There are three tasks when direction changes, but **they run in different places**.
 
-| やること | どこで |
+| Task | Where |
 |---|---|
-| descriptor を受け取ってカメラ用 actor へ渡す | 変更ハンドラー |
-| `AVCaptureSession` を再構成し、利用者側を向くカメラからの配信を維持する | カメラ用 actor |
-| プレビューのミラーリングと UI の更新 | main actor |
+| Receive the descriptor and pass it to the camera actor | Change handler |
+| Reconfigure `AVCaptureSession` to maintain streaming from a camera facing the user | Camera actor |
+| Update preview mirroring and UI | main actor |
 
-### カメラ用 actor での再構成
+### Reconfiguring on the camera actor
 
-- `AVCaptureDeviceDescriptor`（iOS 27.1+ Beta）は `deviceType` / `mediaTypes` / `position` / `uniqueID` / `localizedName` を持つ `Sendable` な値。デバイスの確保はしない
-- actor 側で `AVCaptureDevice(uniqueID:)` から作る。**dispatch の間にカメラ構成が変わるので `nil` を処理する（強制アンラップしない）**
-- マルチカメラセッションで2台つなぐより、1つのビデオ入力を差し替える
-- `beginConfiguration()` / `commitConfiguration()` の中で入力を入れ替え、`canAddInput` が通らなければ元の入力に戻す
+- `AVCaptureDeviceDescriptor` (iOS 27.1+ Beta) is a `Sendable` value with `deviceType` / `mediaTypes` / `position` / `uniqueID` / `localizedName`. It does not acquire the device
+- Create the device on the actor with `AVCaptureDevice(uniqueID:)`. **Handle `nil` because the camera configuration can change during dispatch (do not force-unwrap)**
+- Replace a single video input rather than connecting two cameras in a multicamera session
+- Swap inputs inside `beginConfiguration()` / `commitConfiguration()`, and restore the original input if `canAddInput` fails
 
-### プレビューとミラーリング
+### Preview and mirroring
 
-- 切り替え中は古いカメラの映像が出るので、ハンドラーが呼ばれたらプレビューを隠し、新しいカメラの映像が届いたら戻す
-- ミラーリングは `position` ではなく map から決める。接続は `position == .front` を自動でミラーリングするため、**背面カメラが forward なら自分でミラーリングし、前面カメラが backward ならミラーリングを外す**
-- `isVideoMirrored` の前に `automaticallyAdjustsVideoMirroring = false` にする（有効なまま設定すると例外）。`isVideoMirroringSupported` が `false` の接続に設定しても例外
-- 入力を差し替えるとプレビューの接続が作り直され設定が消える。map 受信時と新デバイス接続後の両方で設定し直す
-- 手動で設定したあと、開閉で向きと `position` が再び一致することがある。そのときは `automaticallyAdjustsVideoMirroring` を `true` に戻すか、map から求めた値を毎回設定し、古い設定を残さない
+- The old camera's video appears during switching. Hide the preview when the handler is called and show it again when video from the new camera arrives
+- Determine mirroring from the map, not `position`. Connections automatically mirror `position == .front`, so **mirror manually when a rear camera is forward-facing and remove mirroring when a front camera is backward-facing**
+- Set `automaticallyAdjustsVideoMirroring = false` before `isVideoMirrored` (setting it while automatic adjustment is enabled throws an exception). Setting it on a connection whose `isVideoMirroringSupported` is `false` also throws an exception
+- Replacing an input recreates the preview connection and loses its settings. Reapply them both when receiving the map and after connecting the new device
+- After manual configuration, opening or closing can make direction and `position` agree again. Either restore `automaticallyAdjustsVideoMirroring` to `true` then, or set the map-derived value every time so stale settings do not remain
 
-実装例は Apple の記事「Choosing a camera by the direction it faces」（https://developer.apple.com/documentation/avkit/choosing-a-camera-by-the-direction-it-faces）にあります。
+An implementation example is in Apple's article "Choosing a camera by the direction it faces" (https://developer.apple.com/documentation/avkit/choosing-a-camera-by-the-direction-it-faces).
 
-## プレビュー
+## Preview
 
-内側ディスプレイで背面カメラの全画角を出すと余白ができます。プレビューを寄せて残りに操作部品をまとめる構成と、画面全体を埋める構成のどちらも選べます。
+Showing the rear camera's full field of view on the inner display leaves unused space. You can position the preview to one side and group controls in the remaining space, or fill the entire display.
 
 ```swift
 previewLayer.videoGravity = .resizeAspectFill
 ```
 
-超広角の前面カメラでは正方形センサーを活かして横長の比率を選べます。
+The ultra-wide front cameras let you use their square sensors to choose a wide aspect ratio.
 
 ```swift
-let current = device.dynamicAspectRatio   // 読み取り専用
+let current = device.dynamicAspectRatio   // Read-only
 
-// 変更は専用メソッド。lockForConfiguration が必要で、
-// activeFormat の supportedDynamicAspectRatios にある値だけ指定できる
+// Change it with the dedicated method. Requires lockForConfiguration,
+// and only accepts values in the activeFormat's supportedDynamicAspectRatios
 try device.lockForConfiguration()
 device.setDynamicAspectRatio(ratio) { syncTime, error in }
 device.unlockForConfiguration()
 ```
 
-## 回転
+## Rotation
 
-`AVCaptureDevice.RotationCoordinator`（iOS 17.0+）を採用すると、プレビューと写真が常に正立します。iPhone Duo ではディスプレイ間を移動したときにも更新されます。
+Adopt `AVCaptureDevice.RotationCoordinator` (iOS 17.0+) to keep previews and photos upright. On iPhone Duo, it also updates when moving between displays.
 
 ```swift
 let coordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: previewLayer)
 previewLayer.connection?.videoRotationAngle = coordinator.videoRotationAngleForHorizonLevelPreview
 ```
 
-角度のプロパティは key-value observing に対応しているため、変化を監視して反映します。
+The angle properties support key-value observing. Observe changes and apply them.
 
-Apple の AVFoundation サンプルコード「Supporting device rotation in your camera app」（iOS 27.0+、Xcode 27.0+、https://developer.apple.com/documentation/avfoundation/supporting-device-rotation-in-your-camera-app）が、AVCam を題材にプレビューと撮影結果の両方へ角度を適用する方法を扱っています。アプリ全体の構成は「AVCam: Building a camera app」（https://developer.apple.com/documentation/avfoundation/avcam-building-a-camera-app）にあります。
+Apple's AVFoundation sample "Supporting device rotation in your camera app" (iOS 27.0+, Xcode 27.0+, https://developer.apple.com/documentation/avfoundation/supporting-device-rotation-in-your-camera-app) uses AVCam to show how to apply angles to both the preview and captured output. For the overall app structure, see "AVCam: Building a camera app" (https://developer.apple.com/documentation/avfoundation/avcam-building-a-camera-app).
 
-実装上の注意:
+Implementation notes:
 
-- **coordinator はデバイスに固定。カメラを切り替えるたびに作り直す**
-- `previewLayer` に `nil` を渡して作った coordinator は、あとでレイヤーができてもプレビュー角度を報告しない。レイヤーが揃ったら作り直す
-- レイヤーはウインドウに入るまで位置を測れない。`didMoveToWindow()` のあとにも渡し直す
-- KVO は以後の変化しか通知しない。**監視を始める前に現在の値を読んで適用する**（しないと最初の回転までプレビューが横倒し）
-- 撮影結果には `videoRotationAngleForHorizonLevelCapture` を各出力の接続の `videoRotationAngle` に設定する。プレビュー用の値とは異なることがある
-- 出力を追加すると既定の角度で接続されるので、追加のたびに現在の角度を適用し直す
+- **A coordinator is bound to a device. Recreate it every time you switch cameras**
+- A coordinator created with `nil` for `previewLayer` will not report preview angles even if a layer becomes available later. Recreate it once the layer is ready
+- The layer cannot measure its position until it is in a window. Pass it again after `didMoveToWindow()` too
+- KVO reports only subsequent changes. **Read and apply the current value before starting observation** (otherwise, the preview remains sideways until the first rotation)
+- For captured output, set each output connection's `videoRotationAngle` to `videoRotationAngleForHorizonLevelCapture`. This can differ from the preview value
+- Adding an output creates a connection with the default angle, so reapply the current angle every time you add one
 
 ```swift
 photoOutput.connection(with: .video)?.videoRotationAngle = coordinator.videoRotationAngleForHorizonLevelCapture
 ```
 
-採用後は、性能のためセンサーの向き補正を無効にします（`isCameraSensorOrientationCompensationEnabled`、iOS 26.0+。対応は `isCameraSensorOrientationCompensationSupported` で確認）。この補正は iPhone Duo の全前面カメラで有効になっています。
+After adopting the coordinator, disable sensor orientation compensation for performance (`isCameraSensorOrientationCompensationEnabled`, iOS 26.0+; check support with `isCameraSensorOrientationCompensationSupported`). This compensation is enabled on all iPhone Duo front cameras.
 
 ```swift
 photoOutput.isCameraSensorOrientationCompensationEnabled = false
 ```
 
-## ビデオ通話アプリ
+## Video calling apps
 
-内側の前面カメラは端末の右寄りという独特な位置にあります。利用者の視線がそこへ向くよう、**UI の重心をカメラのある側へ寄せてください**（Apple の FaceTime はそうしています）。
+The inner front camera is in an unusual position toward the right side of the device. **Shift the UI's visual center toward the camera side** to direct the user's gaze there (Apple's FaceTime does this).
 
-自分の映像を映す小さなビューは、内側カメラの領域に重ならないようにします。内側カメラの occlusion はカメラが作動している間だけ現れ、切ると消えるので、移動させる側も出し入れに追従する必要があります。reserved regions の `.occlusion` で領域を取ります（`references/layout.md` 参照）。
+Keep the small self-view clear of the inner camera region. The inner camera occlusion appears only while the camera is active and disappears when it turns off, so any view you move must track its appearance and disappearance. Get the region with reserved regions' `.occlusion` (see `references/layout.md`).

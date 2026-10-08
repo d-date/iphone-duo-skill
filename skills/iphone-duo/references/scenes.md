@@ -1,69 +1,69 @@
-# シーンとヒンジ
+# Scenes and the hinge
 
-## ヒンジ
+## Hinge
 
-ヒンジの状態と角度をアプリから読めます。状態は**閉じた状態・部分的に開いた状態・完全に開いた状態**の3つで、あわせて角度が連続的に更新されます。
+Apps can read hinge status and angle. There are three statuses: **closed, partially folded, and fully open**, with continuous angle updates alongside them.
 
 ```swift
-// SwiftUI: onHingeChange(isEnabled:_:)（iOS 27.1+ Beta）
-// 宣言は (DeviceHingeContext, DeviceHingeContext) -> Void。isEnabled には既定値があるので省略できる
+// SwiftUI: onHingeChange(isEnabled:_:) (iOS 27.1+ Beta)
+// Declaration: (DeviceHingeContext, DeviceHingeContext) -> Void. isEnabled has a default value and can be omitted
 someView
     .onHingeChange { _, context in
-        // context の hinge が nil ならヒンジのないデバイス
+        // A nil hinge in context means the device has no hinge
         if let hinge = context.hinge, hinge.status == .partiallyOpen {
-            value = compute(from: hinge.angle)   // angle は Angle 型
+            value = compute(from: hinge.angle)   // angle is an Angle
         } else {
             value = 0
         }
     }
 ```
 
-UIKit は `UIHingeInteraction` が対応します。
+UIKit provides `UIHingeInteraction`.
 
-クロージャは変更前後の `DeviceHingeContext` を受け取ります。`DeviceHingeContext` が持つのは `hinge`（`DeviceHinge?`）だけです。`DeviceHinge` は `angle` と `status` を持ち、`DeviceHinge.Status` は `closed` / `partiallyOpen` / `fullyOpen` の3つです。`nil` チェックを省くとヒンジのない端末で意図しない挙動になるため、必ず確認してください。
+The closure receives the `DeviceHingeContext` before and after the change. `DeviceHingeContext` contains only `hinge` (`DeviceHinge?`). `DeviceHinge` has `angle` and `status`, and `DeviceHinge.Status` has three values: `closed` / `partiallyOpen` / `fullyOpen`. Always check for `nil`; omitting the check causes unintended behavior on devices without a hinge.
 
-**用途の切り分けが重要です。** ライブのヒンジデータはインタラクションやエフェクト向けです。レイアウトの決定には arrangement と reserved regions の API を使ってください。ヒンジ角度から直接レイアウトを組むと、システムが提供する適応と二重になります。
+**Keep the use cases separate.** Live hinge data is for interactions and effects. Use arrangement and reserved regions APIs for layout decisions. Building a layout directly from the hinge angle duplicates the adaptation provided by the system.
 
-## マルチタスキング
+## Multitasking
 
-iPhone Duo では全アプリがマルチタスキングに参加します。2つのアプリを左右に並べる配置と、動画とアプリを上下に重ねる配置がありますが、**アプリ側からはどちらも同じ**です。与えられたサイズに追従するだけで済みます。
+Every app participates in multitasking on iPhone Duo. Two apps can appear side by side, or a video and an app can be stacked vertically, but **both are the same from the app's perspective**. Just adapt to the size you are given.
 
-分割表示もピクチャ・イン・ピクチャの上部固定も、システムが提供する操作です。これらを実装するための API はありません。size class と scene のジオメトリで判断してください。
+Split View and pinning Picture in Picture to the top are system-provided interactions. There are no APIs for implementing them. Make decisions using size class and scene geometry.
 
-iPad や iPhone ミラーリングでのリサイズにすでに対応しているなら、その時点で有利です。
+If your app already supports resizing on iPad or in iPhone Mirroring, you have a head start.
 
-外部ディスプレイの扱いは通常の iPhone と同じだろう、というのが Group Lab での見立てです（接続して動くこと自体は確認されていますが、挙動全体の検証結果ではありません）。iPad の Stage Manager のようなマルチタスキングには対応しない見込みです。
+The Group Lab assessment was that external displays would probably behave as on a regular iPhone (connecting and running has been confirmed, but this is not a comprehensive validation of the behavior). Multitasking like Stage Manager on iPad is not expected to be supported.
 
-ウインドウシーンのサイズを直接指定する API はありません。iPad のように自由にドラッグしてリサイズすることもできず、サイズは姿勢と Split View で決まります。
+There is no API to specify a window scene's size directly. Users also cannot freely drag to resize as on iPad; size is determined by pose and Split View.
 
-Picture in Picture は、完全に開いた横向きでは画面上部に固定でき、アプリは残りの領域へ縦にリサイズされます。部分的に折りたたむと動画は画面の半分まで広がります。外側ディスプレイへ移るのは端末を閉じたときだけで、移動はシステムが制御します。音声だけのコンテンツを PiP のように固定する仕組みはありません。
+Picture in Picture can be pinned to the top of the display when fully open in landscape, vertically resizing the app into the remaining space. When partially folded, the video expands to half the display. It moves to the outer display only when the device closes, and the system controls that movement. There is no mechanism to pin audio-only content like PiP.
 
-## 複数ウインドウ
+## Multiple windows
 
-iPhone Duo は、アプリの UI を複数インスタンス表示できる最初の iPhone です。iPad で対応しているアプリは iPhone Duo でも対応します。仕組みは iPad と同じで、同じアプリのインスタンス同士も、他のアプリとも並べられます。`@AppStorage` のような保存先を参照している場合、状態はインスタンス間で共有されます。
+iPhone Duo is the first iPhone that can show multiple instances of an app's UI. Apps that support this on iPad also support it on iPhone Duo. The mechanism is the same as on iPad: instances of the same app can appear beside each other or beside other apps. State is shared between instances when they reference storage such as `@AppStorage`.
 
-**ただし新規ウインドウを作成できるのは内側ディスプレイだけ**で、外側ディスプレイでは作成できません。この可否が動的に変わるのが iPhone Duo 固有の挙動です。
+**New windows can be created only on the inner display**, not the outer display. The dynamic change in this capability is specific to iPhone Duo.
 
-音声はシーンごとに分かれないという見立てが Group Lab で示されました（確答ではありません）。音声の制御は UI とは別の層にあり、コントロールセンターに音量スライダーが2つ出ることはありません。分けたいなら自前でミキシングすることになります。iPad でも同じアプリの2つのシーンを開けるので、そこで挙動を確かめてください。
+The Group Lab assessment was that audio would not be separated by scene (this was not a definitive answer). Audio control is a separate layer from the UI, and Control Center will not show two volume sliders. To separate audio, you would need to mix it yourself. You can open two scenes of the same app on iPad too, so check the behavior there.
 
 ```swift
-// 作成できない状況では自動的に隠れる
+// Automatically hides when creation is unavailable
 UIWindowScene.ActivationAction   // UIKit
 
-// SwiftUI は openWindow と supportsMultipleWindows で可否を判断する
+// SwiftUI: Use openWindow and supportsMultipleWindows to determine availability
 @Environment(\.supportsMultipleWindows) private var supportsMultipleWindows
 ```
 
-要求が失敗する場合に備えてエラーを処理します。UIKit では `UIApplication.activateSceneSession(for:errorHandler:)`（iOS 17.0+）で要求し、`UISceneError.Code` で理由を判別します。`.requestDenied` は外側ディスプレイなどで作成できない状況、`.multipleScenesNotSupported` はアプリが複数シーンに対応していない場合です。
+Handle errors in case a request fails. In UIKit, request activation with `UIApplication.activateSceneSession(for:errorHandler:)` (iOS 17.0+) and use `UISceneError.Code` to identify the reason. `.requestDenied` indicates a situation where creation is unavailable, such as on the outer display. `.multipleScenesNotSupported` indicates that the app does not support multiple scenes.
 
 ## scene accessories
 
-メイン UI に付随するコンテンツを別のディスプレイへ同時に表示する仕組みです。iPhone Duo 専用ではなく iPhone と iPad の機能で、外部ディスプレイにゲームを出して iPhone をコントローラーにする、といった用途があります。
+Scene accessories display content accompanying the main UI on another display at the same time. They are an iPhone and iPad feature, not exclusive to iPhone Duo. One use case is showing a game on an external display while using the iPhone as a controller.
 
-利用可否はシステムが動的に管理します。既定では有効ですが随時切り替わるため、**変化に追従する前提で組んでください**。
+The system manages availability dynamically. It is enabled by default but can change at any time, so **design to respond to changes**.
 
 ```swift
-// SwiftUI（iOS 27.0+）
+// SwiftUI (iOS 27.0+)
 CameraView(model: model)
     .sceneAccessory {
         CameraCaptureAccessory(isEnabled: $model.isEnabled) {
@@ -75,28 +75,28 @@ CameraView(model: model)
     }
 ```
 
-`sceneAccessory(content:)` に渡す内容は `SceneAccessoryContent` に準拠している必要があります。
+Content passed to `sceneAccessory(content:)` must conform to `SceneAccessoryContent`.
 
-- `CameraCaptureAccessory`（iOS 27.1+ Beta） — カメラ利用時に外側ディスプレイへ追加 UI を出す。次節を参照
-- `ExternalNonInteractiveAccessory` — 外部ディスプレイへ操作を伴わないコンテンツを出す
+- `CameraCaptureAccessory` (iOS 27.1+ Beta) — Displays additional UI on the outer display while using the camera. See the next section
+- `ExternalNonInteractiveAccessory` — Displays noninteractive content on an external display
 
-UIKit では `UISceneAccessory` が対応し、利用可否は `UISceneAccessoryRegistration.isAvailable` で確認します。`sceneAccessory(content:)`、`UISceneAccessory`、`UISceneAccessoryRegistration`、`registerSceneAccessory(_:)`、`onAvailabilityChange(perform:)` はいずれも iOS 27.0 です。
+UIKit provides `UISceneAccessory`; check availability with `UISceneAccessoryRegistration.isAvailable`. `sceneAccessory(content:)`, `UISceneAccessory`, `UISceneAccessoryRegistration`, `registerSceneAccessory(_:)`, and `onAvailabilityChange(perform:)` are all iOS 27.0.
 
-置ける内容に制限はありません。ウィジェットとは違い、渡されるのは完全な UIScene なので、アプリの他の画面と同じように作れます。アニメーションや更新頻度についても、Group Lab の回答者は把握している制限はないと述べています。
+There are no restrictions on what content you can place there. Unlike a widget, it receives a full UIScene, so build it like any other screen in your app. The Group Lab respondent also said they knew of no restrictions on animation or update frequency.
 
-**内側と外側のディスプレイを同時に点灯させられるのはカメラアプリだけです。**テント姿勢で内側ディスプレイを光らせる時計のような表現は AlarmKit が提供する機能です。アラーム以外で同じことはできないだろう、というのが Group Lab での回答でした。1日目の Group Lab ではこれにシステムの entitlement が必要だと述べられましたが、名前や申請方法は公開されておらず、Apple のドキュメント側にも entitlement への言及はありません。**推測で書かないでください。**
+**Only camera apps can activate the inner and outer displays simultaneously.** Clock-like presentations that illuminate the inner display in tent pose are provided by AlarmKit. The Group Lab answer was that the same behavior probably could not be used outside alarms. Group Lab day 1 stated that this requires a system entitlement, but neither its name nor how to request it has been published, and Apple's documentation does not mention an entitlement. **Do not invent one.**
 
-## カメラアクセサリの登録
+## Registering a camera accessory
 
-撮影される側に何かを見せるための仕組みです。背面カメラと外側ディスプレイが同じ方向を向くため、台本・カウントダウン・カメラに写っている範囲などをカメラの前に立つ人へ出せます。
+This mechanism shows content to the person being photographed or filmed. The rear camera and outer display face the same direction, so you can show a script, countdown, or the camera's field of view to the person standing in front of the camera.
 
-**設計の前提:**
+**Design assumptions:**
 
-- 表示先はシステムが決める。アプリが渡すのはコンテンツの種類だけで、ディスプレイもキャプチャセッションもカメラも指定しない
-- 外側ディスプレイはタッチを受け付けるが、プレビューをタップしてフォーカスを合わせる程度の単一の操作に留める。2つ目の操作画面にはしない
-- **欠かせない操作は撮影画面の側に置く。**システムはいつでもコンテンツを引っ込められる。外側ディスプレイがない端末でも、システムが何も出さないときでも、撮影画面だけで完結するよう設計する
+- The system chooses the destination. The app provides only the content type; it does not specify a display, capture session, or camera
+- The outer display accepts touch, but keep interaction to a single action such as tapping the preview to focus. Do not make it a second control screen
+- **Keep essential controls on the capture screen.** The system can withdraw the content at any time. Design the capture screen to work on its own, both on devices without an outer display and when the system displays nothing
 
-**登録先は撮影画面を表示しているビューです。**そのビューが画面にある間だけコンテンツが出て、別の画面へ移ると止まります。
+**Register on the view that displays the capture screen.** Content appears only while that view is onscreen and stops when you navigate to another screen.
 
 ```swift
 // UIKit
@@ -105,39 +105,39 @@ configuration.delegateClass = ScriptSceneDelegate.self
 
 let accessory = UISceneAccessory.cameraCapture(sceneConfiguration: configuration,
                                                userInfo: model)
-registration = registerSceneAccessory(accessory)   // 戻り値を強参照で保持する
+registration = registerSceneAccessory(accessory)   // Retain the return value strongly
 ```
 
-- `cameraCapture(sceneConfiguration:userInfo:)` と `UISceneSession.Role.windowCameraCaptureAccessory` は iOS 27.1+ Beta
-- 戻り値の `UISceneAccessoryRegistration` は強参照で保持する。提供自体をやめるときだけ `unregisterSceneAccessory(_:)` を呼ぶ
-- session role はシステムが割り当てる。シーンマニフェストに項目を書いても効果はない。1つのシーンデリゲートで複数種類のシーンを扱うなら `windowCameraCaptureAccessory` と比較して判別する
+- `cameraCapture(sceneConfiguration:userInfo:)` and `UISceneSession.Role.windowCameraCaptureAccessory` are iOS 27.1+ Beta
+- Retain the returned `UISceneAccessoryRegistration` strongly. Call `unregisterSceneAccessory(_:)` only when you stop offering the accessory entirely
+- The system assigns the session role. Adding an entry to the scene manifest has no effect. If one scene delegate handles multiple scene types, compare against `windowCameraCaptureAccessory` to distinguish them
 
-**状態は送り合わず、同じオブジェクトを両方から読ませます。**SwiftUI ではコンテンツのクロージャが周囲の状態を捉えるので observable なモデルをそのまま渡せます。UIKit では `userInfo` に渡し、シーン接続時に `UIScene.ConnectionOptions.sceneAccessoryUserInfo` から取り出します。渡したオブジェクトはアプリ側で強参照を保ってください（アクセサリは置き場所ではありません）。
+**Have both sides read the same object rather than sending state back and forth.** In SwiftUI, the content closure captures surrounding state, so you can pass an observable model directly. In UIKit, pass it through `userInfo` and retrieve it from `UIScene.ConnectionOptions.sceneAccessoryUserInfo` when the scene connects. Keep a strong reference to the object in the app (the accessory is not its storage location).
 
-**利用可否とオン・オフは別物です。**
+**Availability and enabled state are separate.**
 
-| | 決めるのは | 読み書き |
+| | Controlled by | Read/write |
 |---|---|---|
-| 利用可否 | システムのみ | SwiftUI `onAvailabilityChange(perform:)` / UIKit `isAvailable` |
-| オン・オフ | アプリ | SwiftUI `CameraCaptureAccessory(isEnabled:)` / UIKit `isEnabled` |
+| Availability | System only | SwiftUI `onAvailabilityChange(perform:)` / UIKit `isAvailable` |
+| Enabled state | App | SwiftUI `CameraCaptureAccessory(isEnabled:)` / UIKit `isEnabled` |
 
-`isAvailable` は observation に対応しているので、`updateProperties()` の中で読めば通知なしで追随します。
+`isAvailable` supports observation, so reading it inside `updateProperties()` tracks changes without notifications.
 
-利用可否が変わる条件:
+Conditions that change availability:
 
-- キャプチャが止まった、アプリが前面から外れた、端末を閉じた
-- 開いた状態の Split View では使えない
-- 同じ種類の登録は最も手前のものだけが表示される。自前のコンテンツを登録する画面へ移ると前の登録は利用不可になり、戻ると復帰する
-- 種類の違うアクセサリ同士は競合しない（外部ディスプレイへスライドを出しつつ外側ディスプレイへ撮影用コンテンツを出せる）
+- Capture stops, the app leaves the foreground, or the device closes
+- Unavailable in Split View while open
+- Only the frontmost registration of the same type is displayed. Navigating to a screen that registers its own content makes the previous registration unavailable; returning restores it
+- Accessories of different types do not conflict (you can show slides on an external display while showing capture content on the outer display)
 
-表示先がないときは登録が非アクティブのまま `isAvailable` が false を返し続けるので、外側ディスプレイのない端末も含めて1つの経路で書けます。**コンテンツを止めたいときは登録を解除せず、撮影画面にオン・オフの操作を置いてください。**既定は有効です。
+When there is no destination, the registration remains inactive and `isAvailable` continues to return false. This lets you use one code path, including on devices without an outer display. **To stop displaying content, provide an on/off control on the capture screen rather than unregistering.** It is enabled by default.
 
-検証はコンテンツを通常のビューで作ればプレビューやシミュレータでレイアウトを確認できますが、シミュレータにカメラがないため、カメラに依存する部分は必ず実機で確認します。
+Build the content as a regular view to validate its layout in previews or the simulator. Because the simulator has no camera, always validate camera-dependent behavior on a device.
 
 ## Core Motion
 
-画面の向きに合わせた姿勢が必要なら、UI を表示しているビューを `CMBodyIdentifiable`（iOS 27.0+）に準拠させ、`CMMotionManager.deviceMotionBody` に設定してください。表示中のディスプレイに応じて補正された値が `CMDeviceMotion.attitude` に届きます。補正はそのディスプレイで全画面表示されているときだけで、それ以外は端末の既定の座標系です。UI のレイアウトは、どの面が上を向くかではなく size class と trait で判断してください。
+If you need attitude aligned with the display orientation, make the view displaying the UI conform to `CMBodyIdentifiable` (iOS 27.0+) and assign it to `CMMotionManager.deviceMotionBody`. `CMDeviceMotion.attitude` then receives values corrected for the display in use. Correction applies only while full screen on that display; otherwise, values use the device's default coordinate system. Make UI layout decisions using size class and traits rather than which face points upward.
 
 ## Web
 
-Safari の Viewport Segments API と Device Posture API は iOS 27.1 の試験的な機能です。設定 > アプリ > Safari > 詳細 > Feature Flags で有効にして試してください。Web ページから iPhone Duo を判別する方法は用意されていないため、レスポンシブデザインで対応してください。
+Safari's Viewport Segments API and Device Posture API are experimental features in iOS 27.1. Enable them under Settings > Apps > Safari > Advanced > Feature Flags to try them. There is no mechanism for a web page to identify iPhone Duo, so use responsive design.

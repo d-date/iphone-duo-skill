@@ -1,31 +1,31 @@
 # iPhone Duo Skill
 
-Apple の iPhone Duo にアプリを対応させるための [Claude Code](https://claude.com/claude-code) skill です。
+A [Claude Code](https://claude.com/claude-code) skill for adapting apps to Apple's iPhone Duo.
 
-Tech Talks 6本、Human Interface Guidelines、Apple Developer Documentation、iPhone Duo Group Lab（2026-09-16 と 2026-09-17 の2回）を一次情報として整理しています。API の綴りと使い方は、公開ドキュメントと各セッションページの公式コードサンプルで確認しています。
+This skill draws on six Tech Talks, the Human Interface Guidelines, Apple Developer Documentation, and two iPhone Duo Group Labs (2026-09-16 and 2026-09-17) as primary sources. API spelling and usage have been checked against public documentation and the official code samples on each session page.
 
-## 収録内容
+## Contents
 
-| ファイル | 扱う内容 |
+| File | Coverage |
 |---|---|
-| `skills/iphone-duo/SKILL.md` | 全体の原則と、どの参照を読むかの案内 |
-| `references/layout.md` | size class、safe area の非対称性、画面の角、reserved regions、arrangement |
-| `references/bars.md` | 垂直バー、項目の配置順、軸の制御、バッジ、オーバーフロー、シート、無効化 |
-| `references/scenes.md` | ヒンジ、マルチタスキング、複数ウインドウ、scene accessories、カメラアクセサリ、Core Motion、Web |
-| `references/camera.md` | デュアル前面カメラ、カメラの向き、プレビュー、回転 |
-| `references/checklist.md` | 既存アプリの移行・検証と App Store のチェックリスト |
+| `skills/iphone-duo/SKILL.md` | General principles and guidance on which references to read |
+| `references/layout.md` | size class, safe area asymmetry, display corners, reserved regions, arrangement |
+| `references/bars.md` | vertical bars, item ordering, axis control, badges, overflow, sheets, disabling vertical bars |
+| `references/scenes.md` | hinge, multitasking, multiple windows, scene accessories, camera accessories, Core Motion, Web |
+| `references/camera.md` | dual front cameras, camera direction, previews, rotation |
+| `references/checklist.md` | Migration and validation for existing apps, and an App Store checklist |
 
-## インストール
+## Installation
 
-### npx を使う
+### Using npx
 
 ```bash
 npx skills add d-date/iphone-duo-skill
 ```
 
-対話的に、グローバル（`~/.claude/skills/`）とプロジェクト（`.claude/skills/`）のどちらへ入れるか選べます。更新は `npx skills update`、削除は `npx skills remove` です。
+The interactive installer lets you choose a global installation (`~/.claude/skills/`) or a project installation (`.claude/skills/`). Use `npx skills update` to update and `npx skills remove` to remove it.
 
-### 手動で置く
+### Manual installation
 
 ```bash
 git clone https://github.com/d-date/iphone-duo-skill.git
@@ -33,36 +33,37 @@ mkdir -p ~/.claude/skills
 cp -r iphone-duo-skill/skills/iphone-duo ~/.claude/skills/
 ```
 
-プロジェクト単位で使う場合は `.claude/skills/` 配下に置いてください。
+For project-specific use, place the skill under `.claude/skills/`.
 
-## 注意
+## Caveats
 
-iPhone Duo 向けの API の多くは iOS 27.1+ Beta としてドキュメントが公開されています。ベータ版のため、正式リリースまでに変わる可能性があります。
+Many iPhone Duo APIs are documented as iOS 27.1+ Beta. They may change before the final release.
 
-初版の時点でドキュメントに見当たらなかった SwiftUI の `onHingeChange`、`toolbarVerticalBehavior(_:)`、`toolbarVerticalCompressionBehavior(_:)` は、2026-09-18 時点でいずれも掲載を確認しました。このガイドが扱う API はすべてドキュメントで宣言を確認できています。実装時は Xcode の補完と実機・シミュレータで確認してください。
+The SwiftUI APIs `onHingeChange`, `toolbarVerticalBehavior(_:)`, and `toolbarVerticalCompressionBehavior(_:)`, which were not found in the documentation when the first edition was written, were all confirmed to be listed as of 2026-09-18. Declarations for every API covered by this guide have been confirmed in the documentation. When implementing, verify them with Xcode completion and on a device or simulator.
 
-## 出典
+## Sources
 
 - [Three steps to make your app shine on iPhone Duo](https://developer.apple.com/iphone-duo/prepare/)
-- [Prepare and submit your apps for iPhone Duo（News）](https://developer.apple.com/news/?id=kkphp5qo)
-- [A Summary of the iPhone Duo Group Lab（Apple Developer Forums）](https://developer.apple.com/forums/thread/847644)
+- [Prepare and submit your apps for iPhone Duo (News)](https://developer.apple.com/news/?id=kkphp5qo)
+- [A Summary of the iPhone Duo Group Lab (Apple Developer Forums)](https://developer.apple.com/forums/thread/847644)
 
 - Tech Talks: Prepare your app for iPhone Duo / Raise the bar with iPhone Duo / Strike a pose with adaptive layouts on iPhone Duo / Leverage multiple displays and scenes on iPhone Duo / Build a great camera experience for iPhone Duo / Design for iPhone Duo
 - Human Interface Guidelines: Designing for iPhone Duo
 - Meet with Apple: iPhone Duo Group Lab [2026-09-16](https://www.youtube.com/watch?v=0zp4gAgC6TI) / [2026-09-17](https://www.youtube.com/watch?v=zAaPDbDKvaU)
-- Apple Developer Documentation: Preparing your app for iPhone Duo / Registering a camera capture accessory on iPhone Duo / Choosing a camera by the direction it faces / Supporting device rotation in your camera app / iOS 27.1 Beta の API リファレンス
+- Apple Developer Documentation: Preparing your app for iPhone Duo / Registering a camera capture accessory on iPhone Duo / Choosing a camera by the direction it faces / Supporting device rotation in your camera app / iOS 27.1 Beta API reference
 
-本 skill の文章は上記を読んで整理したもので、Apple の文章やコードサンプルをそのまま収録したものではありません。
+The prose in this skill synthesizes the sources above; it does not reproduce Apple's prose or code samples verbatim.
 
-## 更新履歴
+## Changelog
 
-- 2026-10-07: シミュレータでも reserved regions が返ることに訂正し、描画用オーバーレイを追加。フォーラムの Group Lab のまとめ、Apple の prepare ガイド、Xcode 27.1 beta / RC の提供状況、App Store の提出・スクリーンショット要件とコードの修正パターンを反映
-- 2026-09-25: Xcode 27.1 beta の iPhone Duo シミュレータで reserved regions が0件になると記載し、折り目回避の検証方法を追記（この記述は誤りで、2026-10-07 に訂正）
-- 2026-09-18: iPhone Duo Group Lab（2026-09-17）の回答と、Apple の記事「Preparing your app for iPhone Duo」「Registering a camera capture accessory on iPhone Duo」を反映。未収載だった3つの API の掲載を確認
-- 2026-09-17: Apple のカメラ関連ドキュメント2本と iOS 27.1 Beta の API リファレンスを反映
-- 2026-09-17: iPhone Duo Group Lab（2026-09-16）の回答を反映
-- 2026-09-11: 初版
+- 2026-10-08: Rewrote the skill in English.
+- 2026-10-07: Corrected the guide to state that the simulator also returns reserved regions, and added an overlay to draw them. Incorporated the forum summary of the Group Lab, Apple's prepare guide, Xcode 27.1 beta / RC availability, App Store submission and screenshot requirements, and code correction patterns.
+- 2026-09-25: Stated that the iPhone Duo simulator in Xcode 27.1 beta returned zero reserved regions, and added instructions for testing fold avoidance (that statement was incorrect and was corrected on 2026-10-07).
+- 2026-09-18: Incorporated answers from the iPhone Duo Group Lab (2026-09-17) and Apple's articles "Preparing your app for iPhone Duo" and "Registering a camera capture accessory on iPhone Duo". Confirmed that the three previously unlisted APIs had been added to the documentation.
+- 2026-09-17: Incorporated two Apple camera documentation articles and the iOS 27.1 Beta API reference.
+- 2026-09-17: Incorporated answers from the iPhone Duo Group Lab (2026-09-16).
+- 2026-09-11: First edition.
 
-## ライセンス
+## License
 
 MIT License
