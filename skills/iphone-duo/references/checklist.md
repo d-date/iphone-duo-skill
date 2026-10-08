@@ -8,10 +8,11 @@
 - [ ] Xcode 27.1 の Device Hub で iPhone Duo シミュレータを選ぶ
 - [ ] ヒンジの角度と姿勢（閉じた状態・開いた状態・book・laptop・tent）の各状態を確認する
 - [ ] 姿勢から姿勢へ移る途中の表示も確認する
-- [ ] Xcode 27.1 beta のシミュレータでは reserved regions（折り目・カメラ）が0件になるため、折り目回避はシミュレータで確認できたことにしない。プレビュー／ユニットテストと実機で確かめる（`references/layout.md` の「シミュレータでの検証」参照。正式版で変わる可能性あり）
-- [ ] Xcode 27.1 の App Resizability スキルを試す
+- [ ] 折り目やカメラを避ける自前のレイアウトは、シミュレータで折り曲げて reserved regions を描き、重なっていないか確認する（`references/layout.md` の「シミュレータでの検証」参照）
+- [ ] Xcode のコーディングアシスタントに「get my app ready for iPhone Duo」と頼み、App Resizability スキルを試す。ほかのエージェントでは `xcrun agent skills export` で書き出す（すべての問題を検出できるわけではない）
 - [ ] カメラを使うアプリは実機でプレビューを確認する
-- [ ] Xcode 27.1 が出るまでは、iPad でウインドウをリサイズするか、Mac の iPhone ミラーリングでアプリをリサイズして確認する
+- [ ] Device Hub の iOS resizable simulator、macOS 27 の iPhone ミラーリング、iPad のウインドウのリサイズでも表示を確認する。ミラーリングでは両方向に極端なサイズまでリサイズする。ネイティブの体験全体は iPhone Duo シミュレータで確認する
+- [ ] iOS 27.1 SDK でビルドしたアプリを出す前に、バーが縦になってもコンテンツが適応することを確認する
 
 ## 2. レイアウト判定の見直し
 
@@ -19,10 +20,11 @@
 
 - [ ] レイアウトの大小判定を size class に置き換える
 - [ ] user interface idiom から画面サイズやデバイス機能を推定している箇所を除去する
-- [ ] レイアウト判断に interface orientation を使っている箇所を除去する
-- [ ] レイアウト判断の画面参照を environment・trait collection・scene の bounds に置き換える
-- [ ] `UIScreen.main` への参照を除去する（すでに非推奨）。画面が必要なら window scene から取る
-- [ ] 固定幅、ブレークポイント、特定の画面に結び付いた寸法を除去する
+- [ ] `UIDevice.current.orientation`・`statusBarOrientation`・`interfaceOrientation`（`windowScene.effectiveGeometry.interfaceOrientation` を含む）に依存するレイアウトを除去し、縦長か横長かは bounds の幅と高さで判断する
+- [ ] 非推奨の `UIScreen.main` への参照を除去し、レイアウト判断には environment・trait collection・scene の bounds を使う。画面が必要なら `UIScreen` を保持せず window scene から動的に取得する
+- [ ] `UIWindow(frame: UIScreen.main.bounds)` を `UIWindow(windowScene:)` に置き換える
+- [ ] サイズを起動時や `viewIsAppearing` で一度読むだけにせず、`layoutSubviews` / `viewDidLayoutSubviews` で読み直す。サイズ変更時の処理は `viewWillTransition(to:with:)` に置く
+- [ ] 固定幅、ブレークポイント、`bounds.height == 844` のような特定の画面に結び付いた寸法・比較を除去する
 - [ ] `UIRequiresFullScreen` など、向きやサイズを固定する設定から離れる
 - [ ] size class で分岐して別々のコンテナを使っている箇所を洗い出し、状態を上位に持ち上げる
 
@@ -55,13 +57,13 @@
 
 ## 5. レイアウトの適応
 
+- [ ] `.scaleAspectFill` / `.aspectRatio(contentMode: .fill)` の全面メディアが横長で欠けないか確認し、size class やアスペクト比で fill と fit を切り替えるか焦点を指定する
 - [ ] 中央配置のレイアウトを点検し、2列化や displacement を検討する
 - [ ] 連続スクロールコンテンツを領域間で移動させていないか確認する
 - [ ] 複雑なレイアウトや、独自 UI を safe area 外に配置する場合は reserved regions を検討する
 - [ ] 折り目回避が必要な箇所で、対応するシステムコンポーネントを使う
 - [ ] 折り目に重なる自前のボタン（購入・カートへ追加など）を reserved regions で動かす
-- [ ] reserved regions を使うレイアウトは折り目の位置を environment 値や引数で注入できる形にし、`reservedRegions` を読むアダプタを薄く分ける
-- [ ] reserved regions が0件のときに折り目なしとして振る舞うフォールバックを持たせる
+- [ ] 平らな状態で division が非アクティブになり、アクティブな領域が0件のときに折り目なしとして振る舞うフォールバックを持たせる
 - [ ] 姿勢ごとに UI を変える場合、姿勢の間の遷移を滑らかにアニメーションできるか確認する
 - [ ] Dynamic Type の大きなサイズで内側ディスプレイの表示を確認する
 - [ ] グリッド状のレイアウトは列数を偶数にする（折り目で分かれたときにきれいに割れるため。`references/layout.md` 参照）
@@ -86,3 +88,11 @@
 - [ ] 向きの変更時にプレビューのミラーリングを検討する
 - [ ] rotation coordinator を採用し、その後センサーの向き補正を無効にする
 - [ ] ビデオ通話アプリは、自分の映像を映すビューが内側カメラの occlusion を避けるようにする
+
+## 8. App Store
+
+- [ ] iPhone Duo に最適化したアプリを App Store Connect で提出する（2026-10-05 から受付）
+- [ ] 2027年4月以降の提出では、必須の iPhone Duo のスクリーンショットを用意する
+- [ ] 各向きでの表示が分かるスクリーンショットと app preview を用意する
+- [ ] App Store Connect のプレビューツールで、iPhone Duo での見え方を確認する
+- [ ] フィーチャーのノミネートを出し、Helpful Details に iPhone Duo への最適化とすべての姿勢への対応を書く

@@ -21,6 +21,46 @@ traitCollection.horizontalSizeClass
 
 固定幅、ブレークポイント、特定の画面に結び付いた寸法は避けてください。外側ディスプレイで縦向きと横向きを区別したい場合も、2軸の size class が異なるので判断できます。ただしまず「区別する必要が本当にあるか」を疑ってください。
 
+### 画面・向き・端末サイズに頼らない
+
+ウインドウは scene から作り、サイズは変わるたびに読み直し、縦長か横長かは bounds で判断します。
+
+```swift
+// UIKit: ウインドウは scene から作る
+// 変更前: UIWindow(frame: UIScreen.main.bounds)
+let window = UIWindow(windowScene: windowScene)
+
+final class GalleryViewController: UIViewController {
+    // サイズは変わるたびに読み直す。起動時や viewIsAppearing で一度読むだけでは足りない
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        // 変更前: UIScreen.main.bounds、UIDevice.current.orientation、bounds.height == 844 などでの判定
+        let isWide = view.bounds.width > view.bounds.height
+        updateColumns(isWide: isWide)
+        // 全面のメディアは、横長で重要な部分が欠けるなら fit に切り替える
+        heroImageView.contentMode = isWide ? .scaleAspectFit : .scaleAspectFill
+    }
+}
+```
+
+```swift
+// SwiftUI: 利用できるサイズの変化を onGeometryChange(for:of:action:) で受け取る
+struct GalleryView: View {
+    @State private var isWide = false
+
+    var body: some View {
+        Gallery(isWide: isWide)
+            .onGeometryChange(for: Bool.self) { proxy in
+                proxy.size.width > proxy.size.height
+            } action: { newValue in
+                isWide = newValue
+            }
+    }
+}
+```
+
+`Gallery`、`updateColumns(isWide:)`、`heroImageView` はこの例のための独自の名前です。
+
 ### 分岐で状態を失わない
 
 size class で `if` を切り、分岐ごとに別のコンテナを使っている SwiftUI のコードは、分岐が切り替わった時点で片方のビュー階層が捨てられます。状態を上位に持ち上げていなければ失われます。
@@ -126,15 +166,32 @@ SwiftUI の宣言は `reservedRegions(kind:options:layoutDirectionBehavior:)` �
 
 **Duo 固有の寸法をハードコードしないでください。**アラートのようなシステムコンポーネントは、本のように折ったときも卓上に立てたときも読みやすく押しやすい位置へ自動で動きます。動かないのはコンテンツ領域に置いた自前の部品です。購入・カートへ追加・無料トライアル開始のような収益に直結するボタンが折り目に重なる構成なら、reserved regions で折り目がアクティブかどうかを見て置き場所を選び直してください。単独の要素を動かしたい場合がこの API の出番です。
 
+外側カメラの領域へカスタム UI を重ねると、タッチが抑制されたり期待どおりに届かなかったりします。reserved regions の API で領域を確認してください。
+
 ### シミュレータでの検証
 
-Xcode 27.1 beta の iPhone Duo シミュレータでは、`reservedRegions` は閉じた状態・平らに開いた状態・折り曲げた状態のいずれでも、`.division` と `.occlusion` の両方で0件を返します。`.includeInactive` を付けても0件です。ヒンジの状態はシミュレートされていますが、システムがアプリのシーンに領域を1つも渡していません（SwiftUI/UIKit からの問い合わせ方の問題ではありません）。正式版の Xcode 27.1 やシミュレータの更新で変わる可能性はありますが、この beta ではシミュレータで折り目回避のコードを動かして確かめることはできません。次の形で組んでください。
+シミュレータでも reserved regions は返ります。折り曲げて返った division region を描くオーバーレイを重ね、折り目やカメラを避ける自前のレイアウトが領域に重ならないか確認してください。
 
-- **折り目の位置を注入できるようにする。** レイアウトは `reservedRegions` を直接読まず、折り目の範囲（`[ReservedRegion]` から取った `frame` など）を environment 値や引数で受け取る。プレビューとユニットテストでは任意の位置・幅の折り目を与え、折り目あり・なしの両方のレイアウトを確かめる
-- **`reservedRegions` を読むアダプタは薄く分ける。** `GeometryReader` などで `reservedRegions(kind:)` を読み、注入用の値へ変換するだけの層にする。この層は実機で確認する
-- **0件なら折り目なしとして振る舞う。** 領域が返らない場合のフォールバックを必ず持つ。この beta のシミュレータでは常に0件になるため、0件を想定していないレイアウトはシミュレータ上で崩れる
+```swift
+struct DivisionRegionOverlay: View {
+    var body: some View {
+        GeometryReader { proxy in
+            ForEach(proxy.reservedRegions(kind: .division)) { region in
+                Rectangle()
+                    .fill(.orange.opacity(0.3))
+                    .frame(width: region.frame.width, height: region.frame.height)
+                    .position(x: region.frame.midX, y: region.frame.midY)
+            }
+        }
+    }
+}
 
-折り目の位置を environment 値で注入してレイアウトとテストを組み、`reservedRegions` を読むアダプタを後から分けて足す進め方は、公開されている SwiftUICalendar の対応（maniramezan/SwiftUICalendar PR #21）と同じです。
+// content.overlay { DivisionRegionOverlay() }
+```
+
+2026-09-28 に Xcode 27.1 beta の iOS 27.1 シミュレータで確認した値は、内側ディスプレイを横向きで折り曲げると `.division` が中央の幅 40pt の縦の帯、`margins` が左右 20pt ずつです。閉じた外側ディスプレイでは `.occlusion` が2件返ります。これらの寸法をレイアウトにハードコードせず、返された領域を使ってください。
+
+平らな状態では division が非アクティブになるため、アクティブな領域が0件なら折り目なしとして振る舞うフォールバックを持たせてください。
 
 ## displacement（要素の移動）
 

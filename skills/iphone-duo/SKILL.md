@@ -7,9 +7,11 @@ description: Apple の iPhone Duo（複数ディスプレイと折り目を持�
 
 Apple の Tech Talks 6本、Human Interface Guidelines、Apple Developer Documentation、iPhone Duo Group Lab（2026-09-16 と 2026-09-17 の2回）を一次情報として整理した実装ガイドです。
 
+App Store Connect では 2026-10-05 から最適化したアプリを提出でき、2027年4月以降の提出では iPhone Duo のスクリーンショットが必須です。
+
 ## 最初に押さえること
 
-iPhone Duo は 2026-10-23 に iOS 27.1 搭載で発売されます。iPhone Duo 対応の SDK と Device Hub は Xcode 27.1（2026年9月中に提供）に含まれます。
+iPhone Duo は 2026-10-23 に iOS 27.1 搭載で発売されます。iPhone Duo 対応の SDK と Device Hub は Xcode 27.1（2026-09-18 に beta、10-05 に Release Candidate が公開）に含まれます。
 
 iPhone Duo は内側と外側の2つのディスプレイを持ち、中央のヒンジで開閉します。**アプリは iPhone アプリのまま**で、開閉によって発生するのはサイズ変更です。専用の user interface idiom はなく phone を返します。内側ディスプレイの水平・垂直ともに regular という組み合わせが iPhone では初めて、という点だけが新しい要素です。
 
@@ -27,9 +29,9 @@ iPhone Duo は内側と外側の2つのディスプレイを持ち、中央の�
 
 最初からすべての姿勢を作り込む必要はありません。発売日にはリサイズ対応とベストプラクティスに沿った状態を出し、その後に改善する進め方が Apple から勧められています。
 
-検証は Xcode 27.1 の Device Hub にある iPhone Duo シミュレータで行います。ヒンジの角度を変えられるほか、閉じた状態・開いた状態・book・laptop・tent の姿勢を選べます。姿勢そのものだけでなく、姿勢から姿勢へ移る途中の表示も確認してください。ただし Xcode 27.1 beta のシミュレータでは、どの姿勢でも reserved regions（折り目・カメラ）が1件も返りません（`.includeInactive` を付けても同じ）。ヒンジの状態はシミュレートされていますが、アプリに領域が渡されないため、reserved regions を読んで折り目を避ける自前のレイアウトはシミュレータでは一度も実行されません。正式版で変わる可能性はありますが、この beta では折り目まわりを `references/layout.md` の「シミュレータでの検証」の方法で確かめ、最後は実機で確認してください。内側と外側のディスプレイを同時に点灯させる状態もシミュレータでは再現できません（カメラが必要なため）。なお iOS 27.1 のシミュレータは、カメラを使うアプリを起動できるようになります。映像は映らず「利用できるカメラがない」と判定されますが、それ以外の UI は確認できます。
+検証は Xcode 27.1 の Device Hub にある iPhone Duo シミュレータで行います。ヒンジの角度を変えられるほか、閉じた状態・開いた状態・book・laptop・tent の姿勢を選べます。姿勢そのものだけでなく、姿勢から姿勢へ移る途中の表示も確認してください。シミュレータでも reserved regions が返るため、折り曲げて領域を描き、折り目やカメラを避ける自前のレイアウトを確認してください（`references/layout.md` の「シミュレータでの検証」参照）。内側と外側のディスプレイを同時に点灯させる状態はシミュレータでは再現できません（カメラが必要なため）。なお iOS 27.1 のシミュレータは、カメラを使うアプリを起動できるようになります。映像は映らず「利用できるカメラがない」と判定されますが、それ以外の UI は確認できます。
 
-Xcode 27.1 がない段階では、iPad で実行してウインドウをリサイズするか、iPhone のみのアプリなら Mac の iPhone ミラーリングでリサイズして確認できます。iPhone ミラーリングは内側ディスプレイに近い比率になり、interface idiom も iPhone のままです。多くの不具合はこれで再現します。垂直バーによる safe area やマージンの非対称に起因する問題は、iPhone Duo シミュレータでないと見つかりにくい点に注意してください。
+リサイズ対応の確認には Device Hub の iOS resizable simulator も使えます。iPad で実行してウインドウをリサイズするか、iPhone のみのアプリなら macOS 27 の iPhone ミラーリングで両方向に極端なサイズまでリサイズして確認してください。ネイティブの体験全体を試すには iPhone Duo シミュレータが最良の方法です。iPhone ミラーリングは内側ディスプレイに近い比率になり、interface idiom も iPhone のままです。多くの不具合はこれで再現します。垂直バーによる safe area やマージンの非対称に起因する問題は、iPhone Duo シミュレータでないと見つかりにくい点に注意してください。
 
 ## どこを読むか
 
@@ -39,19 +41,21 @@ Xcode 27.1 がない段階では、iPad で実行してウインドウをリサ�
 |---|---|
 | `references/layout.md` | size class、safe area の非対称性、画面の角、reserved regions、arrangement |
 | `references/bars.md` | 垂直バー、項目の配置順、軸の制御、バッジ、オーバーフロー、シート、無効化 |
-| `references/scenes.md` | ヒンジ、マルチタスキング、複数ウインドウ、scene accessories、カメラアクセサリ |
+| `references/scenes.md` | ヒンジ、マルチタスキング、複数ウインドウ、scene accessories、カメラアクセサリ、Core Motion、Web |
 | `references/camera.md` | デュアル前面カメラ、カメラの向き、プレビュー、回転 |
-| `references/checklist.md` | 既存アプリの移行チェックリスト |
+| `references/checklist.md` | 既存アプリの移行・検証と App Store のチェックリスト |
 
 ## 全体に効く原則
 
 これらは領域を問わず効いてくるので、先に頭に入れておくと判断が速くなります。
 
-**size class で判断する。** user interface idiom から画面サイズやデバイス機能を推定したり、interface orientation でレイアウトを分岐したりしないでください。内側ディスプレイはアプリが宣言した supported interface orientations に従って回転せず、代わりにスケーリングされます。向きを見ても意図した結果になりません。縦向き専用のアプリでも、内側ディスプレイでは size class が regular/regular になります。現在の向きは environment や trait から読めますが、判断は利用できる幅で行ってください。`UIRequiresFullScreen` のような向きやサイズを固定する設定からは離れることが勧められています。
+**size class で判断する。** user interface idiom から画面サイズやデバイス機能を推定したり、`UIDevice.current.orientation`・`statusBarOrientation`・`interfaceOrientation`（`windowScene.effectiveGeometry.interfaceOrientation` を含む）でレイアウトを分岐したりしないでください。縦長か横長かは bounds の幅と高さで判断し、`bounds.height == 844` のような端末サイズとの比較を除去してください。内側ディスプレイはアプリが宣言した supported interface orientations に従って回転せず、代わりにスケーリングされます。向きを見ても意図した結果になりません。縦向き専用のアプリでも、内側ディスプレイでは size class が regular/regular になります。現在の向きは environment や trait から読めますが、判断は利用できる幅で行ってください。`UIRequiresFullScreen` のような向きやサイズを固定する設定からは離れることが勧められています。
 
 **分岐でビュー階層を作り替えない。** size class で `if` を切り、分岐ごとに別のコンテナを使っている SwiftUI のコードは、切り替わった時点で片方のビュー階層が捨てられ、状態を上位に持ち上げていなければ失われます。iPad のリサイズでも起きていた問題ですが、iPhone Duo では内側ディスプレイから閉じた状態へ移るたびに表面化します。分岐そのものをやめられないか（`ArrangementView` などで置き換えられないか）を先に検討してください。
 
-**画面を直接参照しない。** `UIScreen.main` は2画面のデバイスでは曖昧になり、ドキュメント上すでに非推奨です。environment、trait collection、scene の bounds を使い、画面が必要なら `window?.windowScene?.screen` から取ります。画面スケールは `displayScale` / `traitCollection.displayScale` で足ります。
+**画面を直接参照しない。** `UIScreen.main` は2画面のデバイスでは曖昧になり、ドキュメント上すでに非推奨です。environment、trait collection、scene の bounds を使い、画面が必要なら `window?.windowScene?.screen` から取ります。`UIWindow(frame: UIScreen.main.bounds)` は `UIWindow(windowScene:)` に置き換え、`UIScreen` は保持せず動的に取得してください。サイズは起動時や `viewIsAppearing` で一度読むだけにせず、`layoutSubviews` / `viewDidLayoutSubviews` で読み直し、サイズ変更時の処理は `viewWillTransition(to:with:)` に置いてください。画面スケールは `displayScale` / `traitCollection.displayScale` で足ります。
+
+**全面メディアの欠けを確認する。** `.scaleAspectFill` / `.aspectRatio(contentMode: .fill)` は横長で欠けないか確認し、size class やアスペクト比で fill と fit を切り替えるか焦点を指定してください。iOS 27.1 SDK でビルドしたアプリを出す前に、バーが縦になってもコンテンツが適応することを確認してください。
 
 **safe area は非対称になる。** 向かい合う辺のインセットが等しいという前提を置いたコードは壊れます。`view.bounds.width - insets.left * 2` のような書き方をやめ、各辺を個別に扱ってください。layout margins やコンテンツのインセットも同様に非対称です。片側の値を反対側に流用せず、システムが返す実際の値を使ってください。
 
@@ -80,6 +84,10 @@ iOS 16 など古いバージョンへの対応を続ける場合は、iPhone Duo
 未公開 API を扱う性質上、**確認できないシグネチャを推測で補わないでください。**Xcode の補完や実機・シミュレータで確かめられない場合は、その旨を明示したうえで提案してください。誤った綴りをそれらしく書くほうが、分からないと言うより害になります。
 
 ## 出典
+
+- [Three steps to make your app shine on iPhone Duo](https://developer.apple.com/iphone-duo/prepare/)
+- [Prepare and submit your apps for iPhone Duo（News）](https://developer.apple.com/news/?id=kkphp5qo)
+- [A Summary of the iPhone Duo Group Lab（Apple Developer Forums）](https://developer.apple.com/forums/thread/847644)
 
 - Tech Talks: Prepare your app for iPhone Duo / Raise the bar with iPhone Duo / Strike a pose with adaptive layouts on iPhone Duo / Leverage multiple displays and scenes on iPhone Duo / Build a great camera experience for iPhone Duo / Design for iPhone Duo
 - Human Interface Guidelines: Designing for iPhone Duo
